@@ -1,0 +1,3605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SchemaForge — Structured Output Schema Builder</title>
+  <script>
+    // Prevent FOUC: Set theme early based on localStorage or system preference
+    const savedTheme = localStorage.getItem('schemaforge-theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f8f6; --surface: #ffffff; --border: #ddddd8; --border-2: #c8c8c2;
+      --text: #1a1a18; --muted: #6b6b66; --accent: #1a56a0; --accent-lt: #e8f0fb;
+      --accent-dk: #134080; --green: #1a7a4a; --green-lt: #e6f5ec;
+      --red: #b83232; --red-lt: #fdecea; --tag-bg: #eeeee9;
+      --mono: "SF Mono","Fira Code","Consolas",monospace;
+      --sans: "Inter","Helvetica Neue",Arial,sans-serif;
+      --radius: 6px; --shadow: 0 1px 3px rgba(0,0,0,.08);
+
+       /* Block type colours */
+       --c-string:  #3b82f6;
+       --c-number:  #c0392b;
+       --c-integer: #f97316;
+       --c-boolean: #0d9488;
+       --c-array:   #8b5cf6;
+       --c-object:  #92400e;
+
+       /* Banners */
+       --warn-bg: #fffbea; --warn-border: #e8d87a; --warn-text: #7a6500;
+       --info-bg: var(--accent-lt); --info-border: #c0d4f0; --info-text: var(--accent-dk);
+       --success-bg: var(--green-lt); --success-border: #a8d5ba; --success-text: var(--green);
+      
+      /* Tags & Badges */
+      --tag-accent-bg: var(--accent-lt); --tag-accent-border: #c0d4f0; --tag-accent-text: var(--accent-dk);
+      --badge-green-bg: var(--green-lt); --badge-green-border: #a8d5ba; --badge-green-text: var(--green);
+      --req-chip-req-bg: #e8f5e9; --req-chip-req-text: #2e7d32;
+    }
+
+    [data-theme="dark"] {
+      --bg: #121212; --surface: #1e1e1e; --border: #333333; --border-2: #444444;
+      --text: #e0e0e0; --muted: #a0a0a0; --accent: #3b82f6; --accent-lt: rgba(59, 130, 246, 0.15);
+      --accent-dk: #93c5fd; --green: #10b981; --green-lt: rgba(16, 185, 129, 0.15);
+      --red: #ef4444; --red-lt: rgba(239, 68, 68, 0.15); --tag-bg: #2d2d2d;
+      --shadow: 0 1px 3px rgba(0,0,0,.3);
+
+        /* Block type colours for dark theme */
+        --c-string:  #60a5fa;
+        --c-number:  #e74c3c;
+        --c-integer: #fb923c;
+        --c-boolean: #2dd4bf;
+        --c-array:   #a78bfa;
+        --c-object:  #b45309;
+
+      /* Desaturated pastel backgrounds for dark mode */
+       --c-string-lt:  rgba(96, 165, 250, 0.1);
+        --c-number-lt:  rgba(192, 57, 43, 0.1);
+       --c-integer-lt: rgba(249, 115, 22, 0.1);
+       --c-boolean-lt: rgba(45, 212, 191, 0.1);
+       --c-array-lt:   rgba(167, 139, 250, 0.1);
+       --c-object-lt:  rgba(180, 83, 9, 0.1);
+      
+       /* Banners */
+       --warn-bg: rgba(251, 191, 36, 0.1); --warn-border: rgba(251, 191, 36, 0.3); --warn-text: #fbbf24;
+       --info-bg: rgba(59, 130, 246, 0.1); --info-border: rgba(59, 130, 246, 0.3); --info-text: #60a5fa;
+       --success-bg: rgba(16, 185, 129, 0.1); --success-border: rgba(16, 185, 129, 0.3); --success-text: #34d399;
+      
+      /* Tags & Badges */
+      --tag-accent-bg: rgba(59, 130, 246, 0.15); --tag-accent-border: rgba(59, 130, 246, 0.3); --tag-accent-text: #93c5fd;
+      --badge-green-bg: rgba(16, 185, 129, 0.15); --badge-green-border: rgba(16, 185, 129, 0.3); --badge-green-text: #34d399;
+      --req-chip-req-bg: rgba(16, 185, 129, 0.15); --req-chip-req-text: #34d399;
+    }
+    
+    html { font-size: 15px; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height:100vh; line-height:1.55; }
+    h2 { font-size: 1.05rem; font-weight: 600; }
+    label { font-size: .85rem; font-weight: 500; color: var(--muted); display: block; margin-bottom: .3rem; }
+    small { font-size: .78rem; color: var(--muted); }
+
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: .9rem 2rem; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-left { display: flex; align-items: center; gap: 1rem; }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    
+    .theme-toggle-btn {
+      background: transparent; border: none; cursor: pointer; padding: .4rem;
+      border-radius: var(--radius); display: flex; align-items: center; justify-content: center;
+      color: var(--muted); transition: background .15s, color .15s;
+    }
+    .theme-toggle-btn:hover { background: var(--tag-bg); color: var(--text); }
+    .theme-toggle-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .theme-toggle-btn .moon-icon { display: block; }
+    .theme-toggle-btn .sun-icon { display: none; }
+    
+    [data-theme="dark"] .theme-toggle-btn .moon-icon { display: none; }
+    [data-theme="dark"] .theme-toggle-btn .sun-icon { display: block; }
+
+    .logo-mark {
+      width: 32px; height: 32px; background: var(--accent); border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 18px; height: 18px; fill: #fff; }
+    .logo-text { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+    .logo-text span { color: var(--accent); }
+    .paper-link, .author-link { color: var(--muted); text-decoration: none; transition: color .15s; border-bottom: 1px solid transparent; }
+    .paper-link:hover, .author-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .app-shell { display: grid; grid-template-columns: var(--left-width, 1fr) auto var(--right-width, 430px); min-height: calc(100vh - 53px); }
+    .left-panel { padding: 2rem 2.5rem; overflow-y: auto; border-right: 1px solid var(--border); }
+    .right-panel {
+      background: #1e1e2e; display: flex; flex-direction: column;
+      position: sticky; top: 53px; height: calc(100vh - 53px); overflow: hidden;
+    }
+
+    /* ── Resize divider ────────────────────────────────────────── */
+    .resize-divider {
+      width: 6px; background: transparent; cursor: col-resize;
+      border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+      position: relative; user-select: none; flex-shrink: 0;
+      transition: background .15s, border-color .15s;
+    }
+    .resize-divider:hover {
+      background: var(--accent-lt); border-color: var(--accent);
+    }
+    .resize-divider.active {
+      background: var(--accent-lt); border-color: var(--accent);
+    }
+
+    .steps-nav {
+      display: flex; margin-bottom: 2rem;
+      border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    }
+    .step-tab {
+      flex: 1; padding: .55rem .4rem; font-size: .78rem; font-weight: 500;
+      text-align: center; cursor: pointer; background: var(--surface); color: var(--muted);
+      border: none; border-right: 1px solid var(--border); line-height: 1.3; transition: background .15s;
+    }
+    .step-tab:last-child { border-right: none; }
+    .step-tab .step-num { display: block; font-size: .65rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: .15rem; }
+    .step-tab.active { background: var(--accent); color: #fff; }
+    .step-tab.active .step-num { color: rgba(255,255,255,.7); }
+    .step-tab.done { background: var(--green-lt); color: var(--green); }
+    .step-tab.done .step-num { color: var(--green); }
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.4rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
+    .card-title { font-size: .9rem; font-weight: 600; margin-bottom: .9rem; padding-bottom: .6rem; border-bottom: 1px solid var(--border); }
+
+    input[type="text"], input[type="number"], textarea, select {
+      width: 100%; padding: .5rem .7rem; font-family: var(--sans); font-size: .88rem;
+      border: 1px solid var(--border-2); border-radius: var(--radius); background: var(--surface);
+      color: var(--text); outline: none; transition: border-color .15s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-lt); }
+    textarea { resize: vertical; min-height: 70px; }
+    .form-row { margin-bottom: .85rem; }
+    .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: .85rem; }
+
+    .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem 1rem; font-family: var(--sans); font-size: .85rem; font-weight: 500; border-radius: var(--radius); border: none; cursor: pointer; transition: background .15s, transform .1s; }
+    .btn:active { transform: scale(.98); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-dk); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border-2); }
+    .btn-secondary:hover { background: var(--bg); }
+    .btn-success { background: var(--green); color: #fff; font-size: .9rem; padding: .65rem 1.4rem; }
+    .btn-success:hover { background: #155e38; }
+    .btn-ghost { background: transparent; color: var(--muted); padding: .3rem .5rem; font-size: .8rem; }
+    .btn-ghost:hover { color: var(--text); background: var(--tag-bg); }
+    .btn-sm { padding: .3rem .65rem; font-size: .78rem; }
+    .btn-danger-ghost { background: transparent; color: var(--red); padding: .3rem .5rem; font-size: .78rem; border: 1px solid transparent; border-radius: var(--radius); cursor: pointer; font-family: var(--sans); }
+    .btn-danger-ghost:hover { background: var(--red-lt); border-color: #e8a0a0; }
+
+    /* ── Provider cards ─────────────────────────────────────── */
+    .provider-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: .6rem; }
+    .provider-card { border: 2px solid var(--border); border-radius: var(--radius); padding: .7rem 1rem; cursor: pointer; background: var(--surface); display: flex; align-items: center; gap: .65rem; transition: border-color .15s, background .15s; position: relative; }
+    .provider-card:hover { border-color: var(--accent); background: var(--accent-lt); }
+    .provider-card.selected { border-color: var(--accent); background: var(--accent-lt); }
+    .provider-card.disabled { opacity: .4; cursor: not-allowed; }
+    .provider-card.disabled:hover { border-color: var(--border); background: var(--surface); }
+    .provider-logo { width: 28px; height: 28px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; color: #fff; flex-shrink: 0; overflow: hidden; }
+    .provider-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .provider-name { font-size: .85rem; font-weight: 600; }
+    .provider-note { font-size: .7rem; color: var(--muted); }
+
+    /* ── Type picker palette ────────────────────────────────── */
+    .type-palette-row {
+      display: flex; flex-wrap: wrap; gap: .45rem; margin-bottom: 1.2rem;
+      padding: .75rem 1rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .type-palette-row label {
+      width: 100%; font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted); margin-bottom: .2rem;
+    }
+    .palette-btn {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .32rem .7rem; border-radius: 5px; border: 2px solid transparent;
+      font-family: var(--mono); font-size: .78rem; font-weight: 700;
+      cursor: pointer; transition: opacity .12s, transform .1s; color: #fff;
+    }
+    .palette-btn:hover { opacity: .85; transform: translateY(-1px); }
+    .palette-btn:active { transform: scale(.96); }
+    .palette-btn[data-type="string"]  { background: var(--c-string); }
+     .palette-btn[data-type="number"]  { background: #c0392b; color: #fff; }
+    .palette-btn[data-type="integer"] { background: var(--c-integer); }
+    .palette-btn[data-type="boolean"] { background: var(--c-boolean); }
+    .palette-btn[data-type="array"]   { background: var(--c-array); }
+    .palette-btn[data-type="object"]  { background: var(--c-object); }
+    .palette-btn .pal-icon { font-size: .9rem; }
+
+    /* ── Field blocks ───────────────────────────────────────── */
+    .field-list { margin-bottom: .5rem; }
+
+    .field-block {
+      border-radius: var(--radius); margin-bottom: .55rem;
+      background: var(--surface); overflow: hidden;
+      box-shadow: var(--shadow); border: 1.5px solid var(--border);
+      transition: box-shadow .15s;
+    }
+    /* ── Drag-and-drop indicators ───────────────────────────────── */
+    .field-drop-zone { position: relative; }
+
+    .drop-indicator {
+      height: 3px; border-radius: 2px;
+      background: var(--accent);
+      opacity: 0; pointer-events: none;
+      transition: opacity .08s;
+      margin: 1px 0;
+    }
+    .field-drop-zone.drop-before .drop-indicator-top    { opacity: 1; }
+    .field-drop-zone.drop-after  .drop-indicator-bottom { opacity: 1; }
+
+    /* "drop into object/array" centre-zone highlight */
+    .drop-into-overlay {
+      position: absolute; inset: 0; border-radius: var(--radius);
+      border: 2px dashed var(--accent);
+      background: var(--accent-lt);
+      opacity: 0; pointer-events: none;
+      transition: opacity .08s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .drop-into-overlay span {
+      font-size: .72rem; font-weight: 700; color: var(--accent);
+      background: var(--surface); padding: .1rem .45rem; border-radius: 3px;
+      pointer-events: none;
+    }
+    .field-drop-zone.drop-into .drop-into-overlay { opacity: 1; }
+
+    /* Sublist empty drop target */
+    .sublist-drop-zone {
+      min-height: 6px; border-radius: var(--radius);
+      transition: min-height .1s, background .1s, border .1s;
+    }
+    .sublist-drop-zone.active {
+      min-height: 32px; background: var(--accent-lt);
+      border: 2px dashed var(--accent);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .sublist-drop-zone.active::after {
+      content: 'drop here to append';
+      font-size: .7rem; font-weight: 600; color: var(--accent);
+    }
+    .field-block[data-ftype="string"]  { border-left: 4px solid var(--c-string); }
+    .field-block[data-ftype="number"]  { border-left: 4px solid var(--c-number); }
+    .field-block[data-ftype="integer"] { border-left: 4px solid var(--c-integer); }
+    .field-block[data-ftype="boolean"] { border-left: 4px solid var(--c-boolean); }
+    .field-block[data-ftype="array"]   { border-left: 4px solid var(--c-array); }
+    .field-block[data-ftype="object"]  { border-left: 4px solid var(--c-object); }
+
+    .field-block-header {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .55rem .75rem .55rem .6rem;
+      cursor: pointer; user-select: none;
+      background: var(--bg); border-bottom: 1px solid transparent;
+    }
+    .field-block-header.open { border-bottom-color: var(--border); }
+
+    .drag-handle {
+      cursor: grab; color: var(--muted); font-size: .85rem; padding: 0 .2rem;
+      line-height: 1; flex-shrink: 0;
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    .type-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .type-dot[data-ftype="string"]  { background: var(--c-string); }
+    .type-dot[data-ftype="number"]  { background: var(--c-number); }
+    .type-dot[data-ftype="integer"] { background: var(--c-integer); }
+    .type-dot[data-ftype="boolean"] { background: var(--c-boolean); }
+    .type-dot[data-ftype="array"]   { background: var(--c-array); }
+    .type-dot[data-ftype="object"]  { background: var(--c-object); }
+
+    .field-name-badge {
+      font-family: var(--mono); font-size: .82rem; font-weight: 700; flex: 1;
+      color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .field-name-placeholder { color: var(--muted); font-style: italic; }
+
+    .type-chip {
+      font-size: .68rem; font-weight: 700; padding: .12rem .42rem; border-radius: 4px;
+      color: #fff; flex-shrink: 0;
+    }
+    .type-chip[data-ftype="string"]  { background: var(--c-string); }
+     .type-chip[data-ftype="number"]  { background: var(--c-number); color: #fff; }
+    .type-chip[data-ftype="integer"] { background: var(--c-integer); }
+    .type-chip[data-ftype="boolean"] { background: var(--c-boolean); }
+    .type-chip[data-ftype="array"]   { background: var(--c-array); }
+    .type-chip[data-ftype="object"]  { background: var(--c-object); }
+
+    .req-chip {
+      font-size: .63rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+      padding: .1rem .35rem; border-radius: 3px; flex-shrink: 0;
+    }
+    .req-chip.req { background: var(--req-chip-req-bg); color: var(--req-chip-req-text); }
+    .req-chip.opt { background: var(--tag-bg); color: var(--muted); }
+
+    .field-chevron { color: var(--muted); font-size: .7rem; transition: transform .2s; flex-shrink: 0; }
+    .field-chevron.open { transform: rotate(90deg); }
+
+    .field-block-body { padding: .9rem 1rem 1rem; display: none; }
+    .field-block-body.open { display: block; }
+
+    /* type selector inside expanded block */
+    .type-btn-group { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: .85rem; }
+    .type-btn {
+      padding: .26rem .6rem; font-family: var(--mono); font-size: .74rem; font-weight: 700;
+      border: 2px solid var(--border-2); border-radius: 4px; background: var(--surface);
+      color: var(--muted); cursor: pointer; transition: all .1s;
+    }
+    .type-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .type-btn.active[data-t="string"]  { background: var(--c-string);  border-color: var(--c-string);  color: #fff; }
+     .type-btn.active[data-t="number"]  { background: var(--c-number);  border-color: var(--c-number);  color: #fff; }
+    .type-btn.active[data-t="integer"] { background: var(--c-integer); border-color: var(--c-integer); color: #fff; }
+    .type-btn.active[data-t="boolean"] { background: var(--c-boolean); border-color: var(--c-boolean); color: #fff; }
+    .type-btn.active[data-t="array"]   { background: var(--c-array);   border-color: var(--c-array);   color: #fff; }
+    .type-btn.active[data-t="object"]  { background: var(--c-object);  border-color: var(--c-object);  color: #fff; }
+
+    .toggle-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .6rem; flex-wrap: wrap; }
+    .toggle { position: relative; width: 34px; height: 18px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track { position: absolute; inset: 0; background: var(--border-2); border-radius: 9px; cursor: pointer; transition: background .2s; }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: #fff; border-radius: 50%; transition: transform .2s; pointer-events: none; }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+    .toggle-label { font-size: .82rem; color: var(--text); }
+
+    .enum-editor { margin-top: .5rem; }
+    .enum-tag-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; min-height: 28px; }
+    .enum-tag { display: inline-flex; align-items: center; gap: .3rem; background: var(--tag-accent-bg); color: var(--tag-accent-text); border: 1px solid var(--tag-accent-border); border-radius: 4px; padding: .18rem .5rem; font-size: .78rem; font-family: var(--mono); font-weight: 500; }
+    .enum-tag-x { cursor: pointer; color: var(--accent); font-size: .7rem; line-height: 1; }
+    .enum-tag-x:hover { color: var(--red); }
+    .enum-add-row { display: flex; gap: .4rem; }
+    .enum-add-row input { flex: 1; }
+
+    .array-config { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; margin-top: .5rem; }
+
+    /* ── Numeric constraints ─────────────────────────────────────── */
+    .constraint-mode-group { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .85rem; }
+    .constraint-radio { display: flex; align-items: center; gap: .35rem; }
+    .constraint-radio input[type="radio"] { cursor: pointer; }
+    .constraint-radio label { margin: 0; cursor: pointer; font-size: .85rem; font-weight: 400; }
+
+    .numeric-config { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; margin-top: .5rem; }
+    .range-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .grid-textarea { width: 100%; min-height: 80px; font-family: var(--mono); font-size: .82rem; }
+    .grid-tag-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .5rem; min-height: 28px; }
+    .grid-tag { display: inline-flex; align-items: center; gap: .3rem; background: var(--tag-accent-bg); color: var(--tag-accent-text); border: 1px solid var(--tag-accent-border); border-radius: 4px; padding: .18rem .5rem; font-size: .78rem; font-family: var(--mono); font-weight: 500; }
+    .grid-tag-x { cursor: pointer; color: var(--accent); font-size: .7rem; line-height: 1; }
+    .grid-tag-x:hover { color: var(--red); }
+
+    .boolean-constraint-badge { display: inline-block; background: var(--badge-green-bg); color: var(--badge-green-text); border: 1px solid var(--badge-green-border); border-radius: 4px; padding: .2rem .6rem; font-size: .78rem; font-weight: 600; margin-top: .5rem; }
+
+    /* ── Nested / object sub-fields ─────────────────────────── */
+    .subfields-wrapper {
+      margin-top: .85rem;
+      border: 1.5px solid var(--c-object);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .subfields-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .4rem .75rem; background: var(--c-object-lt);
+      border-bottom: 1px solid rgba(13,148,136,.2);
+      font-size: .78rem; font-weight: 700; color: var(--c-object);
+    }
+    .subfields-body { padding: .6rem .75rem .75rem; }
+    .subfields-body .field-block { border-left-width: 3px; }
+    .subfields-body .field-list { margin-bottom: .35rem; }
+
+    .no-subfields-hint {
+      font-size: .78rem; color: var(--muted); text-align: center;
+      padding: .6rem; border: 1.5px dashed var(--border); border-radius: 4px;
+      margin-bottom: .5rem;
+    }
+
+     /* ── Empty state ────────────────────────────────────────── */
+    .empty-schema {
+      text-align: center; padding: 2.5rem 1.5rem; color: var(--muted);
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      margin-bottom: 1rem;
+    }
+    .empty-schema .empty-icon { font-size: 2rem; margin-bottom: .6rem; display: block; opacity: .4; }
+    .empty-schema strong { display: block; font-weight: 600; color: var(--text); margin-bottom: .8rem; }
+    .empty-schema p { font-size: .82rem; line-height: 1.6; max-width: 95%; margin: 0 auto; }
+    .type-badge {
+      display: inline-flex; align-items: center; padding: .22rem .55rem; border-radius: 4px;
+      font-family: var(--mono); font-size: .72rem; font-weight: 700; color: #fff;
+      margin: 0 .15rem; white-space: nowrap;
+    }
+    .type-badge[data-type="string"]  { background: var(--c-string); }
+     .type-badge[data-type="number"]  { background: #c0392b; color: #fff; }
+    .type-badge[data-type="integer"] { background: var(--c-integer); }
+    .type-badge[data-type="boolean"] { background: var(--c-boolean); }
+    .type-badge[data-type="array"]   { background: var(--c-array); }
+    .type-badge[data-type="object"]  { background: var(--c-object); }
+
+     /* ── Banners ────────────────────────────────────────────── */
+     .warn-banner { display: flex; align-items: flex-start; gap: .5rem; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius); padding: .65rem .9rem; font-size: .8rem; color: var(--warn-text); margin-bottom: .85rem; }
+     .info-banner  { display: flex; align-items: flex-start; gap: .5rem; background: var(--info-bg); border: 1px solid var(--info-border); border-radius: var(--radius); padding: .65rem .9rem; font-size: .8rem; color: var(--info-text); margin-bottom: .85rem; }
+     .success-banner { display: flex; align-items: flex-start; gap: .5rem; background: var(--success-bg); border: 1px solid var(--success-border); border-radius: var(--radius); padding: .65rem .9rem; font-size: .8rem; color: var(--success-text); margin-bottom: .85rem; }
+
+    /* ── Tooltip ────────────────────────────────────────────── */
+    .tooltip-wrapper { position: relative; display: inline-block; }
+    .tooltip-icon { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); color: #fff; font-size: .65rem; font-weight: 700; line-height: 1.5; text-align: center; cursor: help; margin-left: .3rem; transition: background .15s; }
+    .tooltip-icon:hover { background: var(--accent); }
+    .tooltip-text { 
+      visibility: hidden; background: #2a2a3e; color: #f0f0f8; text-align: left; padding: .6rem .8rem; 
+      border-radius: 5px; font-size: .78rem; line-height: 1.5; position: absolute; z-index: 1000; 
+      bottom: 125%; left: 50%; transform: translateX(-50%); width: 220px; opacity: 0; 
+      transition: opacity .2s; border: 1px solid #3d3d5c; box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    }
+    .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #2a2a3e transparent transparent transparent; }
+    .tooltip-wrapper:hover .tooltip-text, .tooltip-wrapper:focus-within .tooltip-text { visibility: visible; opacity: 1; }
+
+    /* ── Field-level hover tooltips (constraint options, labels, etc.) ── */
+    .constraint-option-wrapper { 
+      display: flex; align-items: center; gap: .35rem; cursor: pointer; 
+      padding: .35rem .4rem; border-radius: 4px; position: relative; 
+      transition: background-color .15s ease;
+    }
+    .constraint-option-wrapper:hover { background-color: var(--accent-lt); }
+    .constraint-option-wrapper:hover .tooltip-text { visibility: visible; opacity: 1; }
+    .constraint-option-wrapper .tooltip-text { 
+      visibility: hidden; opacity: 0; top: auto; bottom: 100%; left: 0; transform: none; width: 240px;
+      margin-bottom: .5rem; border-radius: 5px; position: absolute; z-index: 1000;
+      transition: opacity .2s ease;
+    }
+    .constraint-option-wrapper .tooltip-text::after {
+      content: ""; position: absolute; bottom: auto; top: 100%; left: 10px; margin-left: 0;
+      border-width: 5px; border-style: solid; border-color: #2a2a3e transparent transparent transparent;
+    }
+
+    .label-with-tooltip { 
+      display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; 
+      padding: .2rem .3rem; border-radius: 3px; position: relative;
+      transition: background-color .15s ease;
+    }
+    .label-with-tooltip:hover { background-color: var(--accent-lt); }
+    .label-with-tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+     .label-with-tooltip .tooltip-text { 
+       visibility: hidden; opacity: 0; top: auto; bottom: 100%; left: 0; transform: none; width: 280px;
+       margin-bottom: .5rem; border-radius: 5px; position: absolute; z-index: 1000;
+       transition: opacity .2s ease;
+     }
+    .label-with-tooltip .tooltip-text::after {
+      content: ""; position: absolute; bottom: auto; top: 100%; left: 10px; margin-left: 0;
+      border-width: 5px; border-style: solid; border-color: #2a2a3e transparent transparent transparent;
+    }
+    .toggle:disabled { opacity: .5; cursor: not-allowed; }
+    .toggle input:disabled + .toggle-track { cursor: not-allowed; }
+
+    .temp-row { display: flex; align-items: center; gap: .75rem; }
+    .temp-row input[type="range"] { flex: 1; accent-color: var(--accent); border: none; padding: 0; box-shadow: none; }
+    .temp-val { font-family: var(--mono); font-size: .85rem; font-weight: 600; color: var(--accent); width: 28px; text-align: right; }
+
+    .step-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+    /* ── Preview panel ──────────────────────────────────────── */
+    .preview-header { display: flex; align-items: center; justify-content: space-between; padding: .75rem 1rem; border-bottom: 1px solid #2d2d44; flex-shrink: 0; }
+    .preview-title { font-size: .78rem; font-weight: 600; color: #a0a0c0; letter-spacing: .04em; text-transform: uppercase; }
+    .preview-tabs { display: flex; gap: .2rem; }
+    .preview-tab { font-size: .72rem; padding: .25rem .6rem; border-radius: 4px; border: 1px solid transparent; cursor: pointer; color: #707090; background: transparent; font-family: var(--sans); }
+    .preview-tab:hover { color: #a0a0c0; }
+    .preview-tab.active { background: #2d2d44; color: #e0e0f0; border-color: #3d3d5c; }
+    .preview-action-btn { display: flex; align-items: center; justify-content: center; background: transparent; border: 1px solid #3d3d5c; color: #8080a0; padding: .35rem; border-radius: 4px; cursor: pointer; transition: all .15s; }
+    .preview-action-btn:hover { background: #2d2d44; color: #c0c0e0; }
+    .preview-action-btn.copied { color: #6ec97e; border-color: #6ec97e; }
+    
+    #code-output, #schema-output {
+      flex: 1; overflow-y: auto; padding: 1rem 1.1rem;
+      font-family: var(--mono); font-size: .76rem; line-height: 1.65;
+      color: #cdd6f4; white-space: pre; tab-size: 4;
+    }
+    #code-output::-webkit-scrollbar, #schema-output::-webkit-scrollbar { width: 5px; }
+    #code-output::-webkit-scrollbar-thumb, #schema-output::-webkit-scrollbar-thumb { background: #3d3d5c; border-radius: 3px; }
+
+    .tok-kw  { color: #cba6f7; }
+    .tok-str { color: #a6e3a1; }
+    .tok-num { color: #fab387; }
+    .tok-cmt { color: #6c7086; font-style: italic; }
+    .tok-fn  { color: #89b4fa; }
+    .tok-bool{ color: #fab387; }
+
+    .preview-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #404060; text-align: center; padding: 2rem; }
+    .preview-placeholder svg { opacity: .25; margin-bottom: 1rem; }
+    .preview-placeholder p { font-size: .82rem; line-height: 1.5; }
+
+    .generate-area { padding: .75rem 1rem; border-top: 1px solid #2d2d44; flex-shrink: 0; }
+    code { font-family: var(--mono); font-size: .82rem; background: var(--tag-bg); padding: .1rem .3rem; border-radius: 3px; }
+
+    @media (max-width: 900px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .resize-divider { display: none; }
+      .right-panel { position: static; height: 500px; }
+    }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM4 10h4v4H4zm6 0h10v4H10zM4 16h16v4H4z"/></svg>
+    </div>
+    <div>
+      <div class="logo-text"><span>Schema</span>Forge</div>
+    </div>
+    <div style="font-size: .85rem; color: var(--muted); margin-left: 1rem; border-left: 1px solid var(--border); padding-left: 1rem; display: flex; align-items: center; white-space: nowrap;">
+      <span style="opacity: 0.75;">source:</span>
+      <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5636430" target="_blank" rel="noopener" class="paper-link" style="margin-left: 0.4rem; font-family: var(--mono); font-weight: 500;">Structured Data with LLMs Done Right</a>
+      <span style="margin: 0 0.8rem; opacity: 0.6;">&middot;</span>
+      <span style="opacity: 0.75;">by:</span>
+      <a href="https://jesusvillota.github.io/" target="_blank" rel="noopener" class="author-link" style="margin-left: 0.4rem; font-family: var(--mono); font-weight: 500;">Jesus Villota</a>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="theme-toggle-btn" id="theme-toggle" title="Toggle dark mode" onclick="toggleTheme()">
+      <svg class="sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="app-shell">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <nav class="steps-nav">
+      <button class="step-tab active" data-step="1" onclick="goStep(1)"><span class="step-num">Step 1</span>Provider</button>
+      <button class="step-tab" data-step="2" onclick="goStep(2)"><span class="step-num">Step 2</span>Schema Builder</button>
+      <button class="step-tab" data-step="3" onclick="goStep(3)"><span class="step-num">Step 3</span>Prompt</button>
+    </nav>
+
+    <!-- STEP 1 — Provider + Model -->
+    <div class="step-panel active" id="step-1">
+      <div class="card">
+        <div class="card-title">LLM Provider</div>
+        <div class="provider-grid">
+           <div class="provider-card selected" id="prov-openai" onclick="selectProvider('openai')">
+             <div class="provider-logo"><img src="logos/symbol.svg" alt="OpenAI" /></div>
+             <div><div class="provider-name">OpenAI (GPT)</div><div class="provider-note">GPT-4o, GPT-4o-mini</div></div>
+           </div>
+           <div class="provider-card" id="prov-groq" onclick="selectProvider('groq')">
+             <div class="provider-logo"><img src="logos/groq-icon-logo-png_seeklogo-605779.png" alt="Groq" /></div>
+             <div><div class="provider-name">GroqCloud</div><div class="provider-note">GPT-OSS 120B, Kimi K2, Llama 4 Scout</div></div>
+           </div>
+           <div class="provider-card" id="prov-anthropic" onclick="selectProvider('anthropic')">
+             <div class="provider-logo"><img src="logos/claude.jpeg" alt="Anthropic" /></div>
+             <div><div class="provider-name">Anthropic (Claude)</div><div class="provider-note">Claude 4.5 & 4.6 (Opus, Sonnet, Haiku)</div></div>
+           </div>
+           <div class="provider-card" id="prov-gemini" onclick="selectProvider('gemini')">
+             <div class="provider-logo"><img src="logos/gemini-color.png" alt="Gemini" /></div>
+             <div><div class="provider-name">Google (Gemini)</div><div class="provider-note">Gemini 3.1 Pro, Gemini 2.5, 2.0 Flash</div></div>
+           </div>
+           <div class="provider-card" id="prov-mistral" onclick="selectProvider('mistral')">
+             <div class="provider-logo"><img src="logos/Mistral_AI_logo_(2025–).svg.png" alt="Mistral" /></div>
+             <div><div class="provider-name">Mistral</div><div class="provider-note">Mistral Large, Small</div></div>
+           </div>
+          <div class="provider-card" id="prov-deepseek" onclick="selectProvider('deepseek')">
+            <div class="provider-logo"><img src="logos/deepseek-color.png" alt="DeepSeek" /></div>
+            <div><div class="provider-name">DeepSeek</div><div class="provider-note">DeepSeek Chat, Reasoner</div></div>
+          </div>
+           <div class="provider-card" id="prov-llama" onclick="selectProvider('llama')">
+             <div class="provider-logo"><img src="logos/llama.png" alt="Meta Llama" /></div>
+             <div><div class="provider-name">Meta (Llama)</div><div class="provider-note">Llama 4 Maverick, Llama 3.3</div></div>
+           </div>
+          <div class="provider-card" id="prov-xai" onclick="selectProvider('xai')">
+            <div class="provider-logo"><img src="logos/XAI_Logo.svg.png" alt="xAI" /></div>
+            <div><div class="provider-name">xAI (Grok)</div><div class="provider-note">Grok 4.1 Fast, Grok 4 Fast</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Model</div>
+        <div class="form-row">
+          <label for="model-select">Select model</label>
+          <select id="model-select" onchange="onModelChange()"></select>
+        </div>
+         <div id="openai-mode-container" class="form-row" style="margin-top: 1.2rem;">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             OpenAI Output Mode
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               OpenAI supports three methods for structured outputs.<br><br>• <strong>Pydantic (SDK Parse):</strong> Uses <code>client.chat.completions.parse()</code> with a Pydantic model. Includes built-in refusal detection and auto-parsed output. Recommended by OpenAI.<br><br>• <strong>Responses API (Pydantic):</strong> Uses the newer <code>client.responses.parse()</code> with a Pydantic model. Supports refusal detection via content items.<br><br>• <strong>Raw JSON Schema:</strong> Uses <code>response_format</code> with a raw JSON Schema dict. Manual <code>json.loads()</code> parsing.
+             </span>
+           </label>
+           <select id="openai-mode-select" onchange="refreshPreview()">
+             <option value="pydantic">Pydantic (SDK Parse) - Recommended</option>
+             <option value="responses">Responses API (Pydantic)</option>
+             <option value="json_schema">Raw JSON Schema</option>
+           </select>
+          </div>
+         <div id="groq-mode-container" class="form-row" style="display:none; margin-top: 1.2rem;">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             Groq Output Mode
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               Groq supports two methods for structured outputs.<br><br>• <strong>Pydantic (SDK Parse):</strong> Uses <code>client.chat.completions.parse()</code> with a Pydantic model. Includes built-in refusal detection and auto-parsed output.<br><br>• <strong>Raw JSON Schema:</strong> Uses <code>response_format</code> with a raw JSON Schema dict. Manual <code>json.loads()</code> parsing.
+             </span>
+           </label>
+           <select id="groq-mode-select" onchange="refreshPreview()">
+             <option value="pydantic">Pydantic (SDK Parse) - Recommended</option>
+             <option value="json_schema">Raw JSON Schema</option>
+           </select>
+          </div>
+         <div id="mistral-mode-container" class="form-row" style="display:none; margin-top: 1.2rem;">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             Mistral Output Mode
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               Mistral supports two methods for structured outputs.<br><br>• <strong>Custom Structured Outputs (Pydantic):</strong> Enforces specific format with correct typing. Recommended by Mistral.<br><br>• <strong>JSON Mode:</strong> Ensures valid JSON output with flexible structure. Uses raw JSON Schema.
+             </span>
+           </label>
+           <select id="mistral-mode-select" onchange="refreshPreview()">
+             <option value="pydantic">Custom Structured Outputs (Pydantic) - Recommended</option>
+             <option value="json_mode">JSON Mode</option>
+           </select>
+          </div>
+          <div id="anthropic-mode-container" class="form-row" style="display:none; margin-top: 1.2rem;">
+            <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+              Anthropic Output Mode
+              <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+                Anthropic supports two methods for structured outputs.<br><br>• <strong>Pydantic (SDK Parse):</strong> Uses <code>client.messages.parse()</code> with a Pydantic model. The SDK auto-transforms the schema, validates the response, and returns a typed object. Recommended by Anthropic.<br><br>• <strong>Raw JSON Schema:</strong> Uses <code>output_config.format</code> with raw JSON Schema. More direct but no SDK-level validation.
+              </span>
+            </label>
+            <select id="anthropic-mode-select" onchange="refreshPreview()">
+              <option value="pydantic">Pydantic (SDK Parse) - Recommended</option>
+              <option value="json_schema">Raw JSON Schema</option>
+            </select>
+          </div>
+          <div id="model-warning" class="warn-banner" style="display:none;">⚠️ <span id="model-warning-text"></span></div>
+         <div id="model-info" class="success-banner" style="display:none;">✓ <span id="model-info-text"></span></div>
+         <div id="anthropic-constraints-warning" class="warn-banner" style="display:none;">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:.1rem"><path d="M12 2L2 20h20L12 2z"/><path d="M12 9v4M12 17h.01"/></svg>
+           <span id="anthropic-constraints-text"></span>
+         </div>
+         <div id="xai-constraints-warning" class="warn-banner" style="display:none;">
+           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:.1rem"><path d="M12 2L2 20h20L12 2z"/><path d="M12 9v4M12 17h.01"/></svg>
+           <span id="xai-constraints-text"></span>
+         </div>
+          <div id="strict-mode-info" class="info-banner" style="display:none;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:.1rem"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span><strong>Strict Mode Enabled:</strong> All fields are required in the output. Use the <strong>Nullable</strong> toggle to allow fields to be null.</span>
+          </div>
+ 
+       </div>
+       <div class="step-footer">
+         <span></span>
+         <button class="btn btn-primary" onclick="goStep(2)">Next: Build Schema →</button>
+       </div>
+    </div>
+
+    <!-- STEP 2 — Schema Builder (free-form) -->
+    <div class="step-panel" id="step-2">
+
+      <!-- Example schema attribution banner -->
+      <div class="info-banner" id="example-banner">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:.1rem"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span>
+          Loaded example: firm-level shock parser from
+          <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5006857" target="_blank" rel="noopener" style="color:var(--accent-dk);font-weight:600;">Villota (2024)</a>
+          — edit freely or
+          <button onclick="clearSchema()" style="background:none;border:none;padding:0;font:inherit;font-size:.8rem;color:var(--accent-dk);font-weight:600;cursor:pointer;text-decoration:underline;">clear the schema</button>
+          to start from scratch.
+        </span>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Schema name</span>
+          <button class="btn btn-secondary" style="font-size:.75rem;padding:.3rem .7rem;" onclick="clearSchema()" title="Remove all fields and reset schema name">Clear schema</button>
+        </div>
+        <div class="form-row">
+          <label for="schema-name">Used as the JSON Schema identifier (snake_case recommended)</label>
+          <input type="text" id="schema-name" placeholder="e.g. my_output_schema" oninput="refreshPreview()" />
+        </div>
+      </div>
+
+      <!-- Type picker palette -->
+      <div class="type-palette-row" id="type-palette">
+        <label>Add a field</label>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="string"  onclick="addField('string')" title="Free-form text or enum">
+             string
+           </button>
+           <span class="tooltip-text">Free-form text or constrained to specific values (enum). Great for classifications and open-ended text.</span>
+         </div>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="number"  onclick="addField('number')" title="Decimal number">
+             number
+           </button>
+           <span class="tooltip-text">Floating-point decimal numbers (e.g., 3.14, 0.5). Use for measurements, percentages, and continuous values.</span>
+         </div>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="integer" onclick="addField('integer')" title="Whole number">
+             integer
+           </button>
+           <span class="tooltip-text">Whole numbers only (e.g., 42, -5, 0). Use for counts, indices, and discrete quantities.</span>
+         </div>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="boolean" onclick="addField('boolean')" title="true / false">
+             boolean
+           </button>
+           <span class="tooltip-text">True or false only. Use for yes/no decisions, presence/absence, or binary classifications.</span>
+         </div>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="array"   onclick="addField('array')" title="List of items">
+             array
+           </button>
+           <span class="tooltip-text">Ordered list of items (strings, numbers, objects, etc.). Use for multiple related values like tags or nested records.</span>
+         </div>
+         <div class="tooltip-wrapper" style="display:inline-block;">
+           <button class="palette-btn" data-type="object"  onclick="addField('object')" title="Nested object with sub-fields">
+             object
+           </button>
+           <span class="tooltip-text">Nested structure with its own fields/properties. Use for complex data with multiple related attributes.</span>
+         </div>
+      </div>
+
+      <!-- Fields render here -->
+      <div class="field-list" id="root-field-list"></div>
+
+      <!-- Empty state -->
+      <div id="empty-schema-msg" class="empty-schema">
+        <span class="empty-icon">🧱</span>
+        <strong>Your schema is empty</strong>
+        <p>Pick a type above to add your first field. You can combine <span class="type-badge" data-type="string">string</span>, <span class="type-badge" data-type="number">number</span>, <span class="type-badge" data-type="integer">integer</span>, <span class="type-badge" data-type="boolean">boolean</span>, <span class="type-badge" data-type="array">array</span>, and <span class="type-badge" data-type="object">object</span> to build any schema you need.</p>
+      </div>
+
+      <div class="step-footer">
+        <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Next: API Config →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 — API Config -->
+    <div class="step-panel" id="step-3">
+      <div class="card">
+        <div class="card-title">System prompt</div>
+        <div class="form-row">
+          <label for="sys-prompt">Defines the model's role and general instructions</label>
+          <textarea id="sys-prompt" rows="4" placeholder="e.g. You are an expert in monetary policy analysis. Classify central bank statements accurately." oninput="refreshPreview()"></textarea>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">User prompt template</div>
+        <div class="form-row">
+          <label>Use <code>{text}</code> as the placeholder for each input document</label>
+          <textarea id="user-prompt" rows="3" placeholder="Classify the monetary policy stance of the following statement:&#10;&#10;{text}" oninput="refreshPreview()"></textarea>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Generation parameters</div>
+        
+         <!-- Temperature -->
+         <div class="form-row">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             Temperature
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               Controls the randomness and creativity of the AI's responses.<br><br>• <strong>Lower values (0.0–0.3):</strong> Produces highly predictable, focused, and deterministic outputs. Recommended for tasks requiring consistency, such as code generation, data formatting, or classification.<br><br>• <strong>Higher values (0.7–1.0):</strong> Generates more diverse and creative outputs. Ideal for brainstorming, storytelling, or generating varied ideas.
+             </span>
+           </label>
+          <div class="temp-row">
+            <input type="range" min="0" max="1" step="0.05" value="0" id="temperature"
+              oninput="document.getElementById('temp-display').textContent=this.value; refreshPreview()" />
+            <div class="temp-val" id="temp-display">0</div>
+          </div>
+        </div>
+        
+         <!-- Seed -->
+         <div class="form-row" style="margin-top: 1.2rem;">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             Seed
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               Sets the random seed for reproducible results. When enabled with Temperature = 0, you'll get more consistent outputs.<br><br>Note: Not all models support this parameter.
+             </span>
+           </label>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label class="toggle" id="seed-toggle-wrapper">
+              <input type="checkbox" id="use-seed" onchange="toggleSeedRow(); refreshPreview()" />
+              <div class="toggle-track"></div><div class="toggle-thumb"></div>
+            </label>
+            <div id="seed-row" style="display:none;">
+              <input type="number" id="seed-val" value="42" min="0" style="width:130px;" oninput="refreshPreview()" />
+            </div>
+            <span id="seed-unsupported-msg" style="display:none; color: var(--red); font-size: 0.85rem; font-style: italic;">Not supported by this model</span>
+          </div>
+        </div>
+
+         <!-- Max Tokens -->
+         <div class="form-row" style="margin-top: 1.2rem;">
+           <label class="label-with-tooltip" style="display: inline-flex; width: fit-content; margin-bottom: 0.5rem;">
+             Max Tokens
+             <span class="tooltip-text" style="font-weight: normal; white-space: normal;">
+               Sets the maximum number of tokens the model can generate in its response. Higher values allow longer outputs but consume more tokens.<br><br>When disabled, the provider's default limit is used.
+             </span>
+           </label>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <label class="toggle" id="max-tokens-toggle-wrapper">
+              <input type="checkbox" id="use-max-tokens" onchange="toggleMaxTokensRow(); refreshPreview()" />
+              <div class="toggle-track"></div><div class="toggle-thumb"></div>
+            </label>
+            <div id="max-tokens-row" style="display:none;">
+              <input type="number" id="max-tokens-val" value="4096" min="1" style="width:130px;" oninput="refreshPreview()" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step-footer">
+        <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+        <button id="download-btn-1" class="btn btn-success" onclick="doDownload()">⬇ Download .py file</button>
+      </div>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- RESIZE DIVIDER -->
+  <div class="resize-divider" id="resize-divider"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="preview-header">
+      <span class="preview-title">Live Preview</span>
+      <div class="preview-tabs">
+        <button class="preview-tab active" id="tab-code" onclick="switchTab('code')">Python</button>
+        <button class="preview-tab" id="tab-schema" onclick="switchTab('schema')">JSON Schema</button>
+      </div>
+       <div style="display: flex; gap: .5rem;">
+         <button class="preview-action-btn" id="copy-btn" onclick="doCopy()" title="Copy to clipboard">
+           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+         </button>
+         <button class="preview-action-btn" id="download-btn-2" onclick="doDownload()" title="Download file">
+           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+         </button>
+         <button class="preview-action-btn" id="validate-btn" onclick="doValidate()" title="Validate schema for strict mode" style="display:none;">
+           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+         </button>
+       </div>
+    </div>
+    <div id="preview-placeholder" class="preview-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6060a0" stroke-width="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+      </svg>
+      <p>Add fields in Step 2 and the generated code will appear here in real time.</p>
+    </div>
+    <pre id="code-output" style="display:none;"></pre>
+    <pre id="schema-output" style="display:none;"></pre>
+  </div>
+
+</div><!-- /app-shell -->
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const STATE = {
+  provider: 'openai',
+  model: 'gpt-4o',
+  schemaName: '',
+  // fields: flat array of field objects at schema root level
+  // Each field may have subFields[] when type === 'object' or (type === 'array' && arrayItemType === 'object')
+  fields: [],
+  sysPrompt: '',
+  userPrompt: '',
+  temperature: 0,
+  useSeed: false,
+  seedVal: 42,
+  useMaxTokens: false,
+  maxTokensVal: 4096,
+  activeTab: 'code',
+  nextFieldId: 1,
+  // drag state
+  _dragFieldId: null,
+  _dragParentId: null,   // null = root level, otherwise parent field id
+  _dragZone: null,       // 'before' | 'after' | 'into'  — current hover zone
+  _dragTargetId: null,   // field id currently being hovered over
+};
+
+// ─── RESIZE DIVIDER ───────────────────────────────────────────────────────────
+const RESIZE_STATE = {
+  isResizing: false,
+  startX: 0,
+  startLeftWidth: 0,
+};
+
+const MIN_LEFT_WIDTH = 300;  // Minimum width for left panel (px)
+const MAX_LEFT_WIDTH = 0.8;  // Maximum left panel as fraction of window (80%)
+
+function initResizeDivider() {
+  const divider = document.getElementById('resize-divider');
+  if (!divider) return;
+
+  // Load saved width from localStorage
+  const savedLeftWidth = localStorage.getItem('schemaforge-left-width');
+  if (savedLeftWidth) {
+    applyLeftPanelWidth(savedLeftWidth);
+  }
+
+  divider.addEventListener('mousedown', onResizeMouseDown);
+}
+
+function onResizeMouseDown(e) {
+  e.preventDefault();
+  RESIZE_STATE.isResizing = true;
+  RESIZE_STATE.startX = e.clientX;
+  
+  const appShell = document.querySelector('.app-shell');
+  const computedStyle = getComputedStyle(appShell);
+  const gridTemplateColumns = computedStyle.gridTemplateColumns;
+  
+  // Parse the first column width (left panel)
+  const leftWidthStr = gridTemplateColumns.split(' ')[0];
+  RESIZE_STATE.startLeftWidth = parseFloat(leftWidthStr);
+
+  document.getElementById('resize-divider').classList.add('active');
+  document.addEventListener('mousemove', onResizeMouseMove);
+  document.addEventListener('mouseup', onResizeMouseUp);
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'col-resize';
+}
+
+function onResizeMouseMove(e) {
+  if (!RESIZE_STATE.isResizing) return;
+
+  const delta = e.clientX - RESIZE_STATE.startX;
+  const newLeftWidth = RESIZE_STATE.startLeftWidth + delta;
+
+  const maxLeftWidth = window.innerWidth * MAX_LEFT_WIDTH;
+  const constrainedWidth = Math.max(MIN_LEFT_WIDTH, Math.min(newLeftWidth, maxLeftWidth));
+
+  applyLeftPanelWidth(constrainedWidth);
+}
+
+function onResizeMouseUp(e) {
+  RESIZE_STATE.isResizing = false;
+  document.getElementById('resize-divider').classList.remove('active');
+  document.removeEventListener('mousemove', onResizeMouseMove);
+  document.removeEventListener('mouseup', onResizeMouseUp);
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+
+  // Save the width to localStorage
+  const appShell = document.querySelector('.app-shell');
+  const computedStyle = getComputedStyle(appShell);
+  const gridTemplateColumns = computedStyle.gridTemplateColumns;
+  const leftWidthStr = gridTemplateColumns.split(' ')[0];
+  localStorage.setItem('schemaforge-left-width', leftWidthStr);
+}
+
+function applyLeftPanelWidth(width) {
+  const root = document.documentElement;
+  if (typeof width === 'number') {
+    root.style.setProperty('--left-width', width + 'px');
+    root.style.setProperty('--right-width', 'auto');
+  } else {
+    root.style.setProperty('--left-width', width);
+    root.style.setProperty('--right-width', 'auto');
+  }
+}
+
+// ─── MODEL CATALOGUE ─────────────────────────────────────────────────────────
+const MODELS = {
+  openai: [
+    { id: 'gpt-4o',            label: 'gpt-4o',            strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+    { id: 'gpt-4o-mini',       label: 'gpt-4o-mini',       strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+    { id: 'gpt-4o-2024-08-06', label: 'gpt-4o-2024-08-06', strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+    { id: 'gpt-4-turbo',       label: 'gpt-4-turbo',       strict: false, supportsSeed: true,  defaultMaxTokens: 4096, note: 'Best-effort JSON mode — schema not enforced server-side.' },
+  ],
+  groq: [
+    { id: 'openai/gpt-oss-120b',                       label: 'GPT-OSS 120B',         strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: 'Supports strict and best-effort Structured Outputs.' },
+    { id: 'openai/gpt-oss-20b',                        label: 'GPT-OSS 20B',          strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: 'Supports strict and best-effort Structured Outputs.' },
+    { id: 'moonshotai/kimi-k2-instruct-0905',          label: 'Kimi K2 Instruct',     strict: false, supportsSeed: true,  defaultMaxTokens: 4096, note: 'Best-effort Structured Outputs — schema not enforced server-side.' },
+    { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B',    strict: false, supportsSeed: true,  defaultMaxTokens: 4096, note: 'Best-effort Structured Outputs — schema not enforced server-side.' },
+    { id: 'openai/gpt-oss-safeguard-20b',              label: 'GPT-OSS Safeguard 20B', strict: false, supportsSeed: true,  defaultMaxTokens: 4096, note: 'Best-effort Structured Outputs — schema not enforced server-side.' },
+  ],
+  anthropic: [
+    { id: 'claude-sonnet-4-5',  label: 'claude-sonnet-4-5',  strict: true,  supportsSeed: false, defaultMaxTokens: 1024, note: '' },
+    { id: 'claude-haiku-4-5',   label: 'claude-haiku-4-5',   strict: true,  supportsSeed: false, defaultMaxTokens: 1024, note: '' },
+    { id: 'claude-opus-4-5',    label: 'claude-opus-4-5',    strict: true,  supportsSeed: false, defaultMaxTokens: 1024, note: '' },
+    { id: 'claude-sonnet-4-6',  label: 'claude-sonnet-4-6',  strict: true,  supportsSeed: false, defaultMaxTokens: 1024, note: '' },
+    { id: 'claude-opus-4-6',    label: 'claude-opus-4-6',    strict: true,  supportsSeed: false, defaultMaxTokens: 1024, note: '' },
+  ],
+  gemini: [
+    { id: 'gemini-3.1-pro-preview',  label: 'gemini-3.1-pro-preview',  strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Preview model — supports structured outputs + tools (Google Search, URL Context, etc.).' },
+    { id: 'gemini-3-pro-preview',    label: 'gemini-3-pro-preview',    strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Preview model — supports structured outputs + tools (Google Search, URL Context, etc.).' },
+    { id: 'gemini-3-flash-preview',  label: 'gemini-3-flash-preview',  strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Preview model — supports structured outputs + tools (Google Search, URL Context, etc.).' },
+    { id: 'gemini-2.5-pro',        label: 'gemini-2.5-pro',        strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'gemini-2.5-flash',      label: 'gemini-2.5-flash',      strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite', strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'gemini-2.0-flash',      label: 'gemini-2.0-flash',      strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Gemini 2.0 requires explicit propertyOrdering in schemas — added automatically.' },
+    { id: 'gemini-2.0-flash-lite', label: 'gemini-2.0-flash-lite', strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Gemini 2.0 requires explicit propertyOrdering in schemas — added automatically.' },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest',  label: 'mistral-large-latest',  strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'mistral-small-latest',  label: 'mistral-small-latest',  strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'ministral-8b-latest',   label: 'ministral-8b-latest',   strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'ministral-3b-latest',   label: 'ministral-3b-latest',   strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+  ],
+  deepseek: [
+    { id: 'deepseek-chat',         label: 'deepseek-chat',         strict: false, supportsSeed: true,  defaultMaxTokens: 8192, note: 'DeepSeek uses JSON mode — schema injected in system prompt but not enforced server-side.' },
+    { id: 'deepseek-reasoner',     label: 'deepseek-reasoner',     strict: false, supportsSeed: true,  defaultMaxTokens: 8192, note: 'DeepSeek uses JSON mode — schema injected in system prompt but not enforced server-side.' },
+  ],
+  llama: [
+    { id: 'Llama-4-Maverick-17B-128E-Instruct-FP8', label: 'Llama-4-Maverick-17B-128E-Instruct-FP8', strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+    { id: 'Llama-4-Scout-17B-16E-Instruct',         label: 'Llama-4-Scout-17B-16E-Instruct',         strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+    { id: 'Llama-3.3-70B-Instruct',                 label: 'Llama-3.3-70B-Instruct',                 strict: true,  supportsSeed: true,  defaultMaxTokens: 4096, note: '' },
+  ],
+  xai: [
+    { id: 'grok-4-1-fast',                label: 'grok-4-1-fast',                strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Reasoning model — supports structured outputs + tool calling.' },
+    { id: 'grok-4-1-fast-non-reasoning',   label: 'grok-4-1-fast-non-reasoning',   strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+    { id: 'grok-4-fast',                   label: 'grok-4-fast',                   strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: 'Reasoning model — supports structured outputs + tool calling.' },
+    { id: 'grok-4-fast-non-reasoning',     label: 'grok-4-fast-non-reasoning',     strict: true,  supportsSeed: false, defaultMaxTokens: 4096, note: '' },
+  ],
+};
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + n).classList.add('active');
+  document.querySelectorAll('.step-tab').forEach(btn => {
+    const s = parseInt(btn.dataset.step, 10);
+    btn.classList.remove('active', 'done');
+    if (s === n) btn.classList.add('active');
+    else if (s < n) btn.classList.add('done');
+  });
+}
+
+// ─── PROVIDER / MODEL ─────────────────────────────────────────────────────────
+function selectProvider(p) {
+  STATE.provider = p;
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('prov-' + p).classList.add('selected');
+  rebuildModelSelect();
+  updateSeedToggleState();
+  updateMaxTokensDefault();
+  
+  const openaiContainer = document.getElementById('openai-mode-container');
+  if (openaiContainer) {
+      openaiContainer.style.display = (p === 'openai') ? 'block' : 'none';
+  }
+
+  const groqContainer = document.getElementById('groq-mode-container');
+  if (groqContainer) {
+      groqContainer.style.display = (p === 'groq') ? 'block' : 'none';
+  }
+
+  const mistralContainer = document.getElementById('mistral-mode-container');
+  if (mistralContainer) {
+      mistralContainer.style.display = (p === 'mistral') ? 'block' : 'none';
+  }
+
+  const anthropicContainer = document.getElementById('anthropic-mode-container');
+  if (anthropicContainer) {
+      anthropicContainer.style.display = (p === 'anthropic') ? 'block' : 'none';
+  }
+  
+  refreshPreview();
+}
+
+function rebuildModelSelect() {
+  const sel = document.getElementById('model-select');
+  sel.innerHTML = '';
+  const list = MODELS[STATE.provider] || [];
+  list.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.label;
+    sel.appendChild(opt);
+  });
+  sel.value = list[0]?.id || '';
+  STATE.model = sel.value;
+  onModelChange();
+}
+
+function onModelChange() {
+  const sel = document.getElementById('model-select');
+  STATE.model = sel.value;
+  const list = MODELS[STATE.provider] || [];
+  const m = list.find(x => x.id === STATE.model);
+  const warnEl  = document.getElementById('model-warning');
+  const warnTxt = document.getElementById('model-warning-text');
+  const infoEl  = document.getElementById('model-info');
+  const infoTxt = document.getElementById('model-info-text');
+  const strictModeInfoEl = document.getElementById('strict-mode-info');
+  const anthropicConstraintsWarnEl = document.getElementById('anthropic-constraints-warning');
+  const anthropicConstraintsTextEl = document.getElementById('anthropic-constraints-text');
+  const xaiConstraintsWarnEl = document.getElementById('xai-constraints-warning');
+  const xaiConstraintsTextEl = document.getElementById('xai-constraints-text');
+  
+  warnEl.style.display = 'none';
+  infoEl.style.display = 'none';
+  strictModeInfoEl.style.display = 'none';
+  anthropicConstraintsWarnEl.style.display = 'none';
+  xaiConstraintsWarnEl.style.display = 'none';
+  
+  // Check for Anthropic-specific constraint issues
+  if (STATE.provider === 'anthropic' && STATE.fields && STATE.fields.length > 0) {
+    const constraintIssues = detectAnthrcopicConstraints(STATE.fields);
+    if (constraintIssues.length > 0) {
+      const issuesList = constraintIssues.map(issue => `<li>${issue}</li>`).join('');
+      anthropicConstraintsTextEl.innerHTML = `<strong>Anthropic Constraint Limitations:</strong><ul style="margin-top:.4rem;margin-left:1.5rem;font-size:.75rem;line-height:1.4;">${issuesList}</ul><div style="margin-top:.4rem;font-size:.75rem;">The Anthropic SDK will move these constraints to field descriptions. Your code must validate the response against the original schema.</div>`;
+      anthropicConstraintsWarnEl.style.display = 'flex';
+    }
+  }
+  
+  // Check for xAI-specific constraint issues
+  if (STATE.provider === 'xai' && STATE.fields && STATE.fields.length > 0) {
+    const constraintIssues = detectXaiConstraints(STATE.fields);
+    if (constraintIssues.length > 0) {
+      const issuesList = constraintIssues.map(issue => `<li>${issue}</li>`).join('');
+      xaiConstraintsTextEl.innerHTML = `<strong>xAI Structured Output Limitations:</strong><ul style="margin-top:.4rem;margin-left:1.5rem;font-size:.75rem;line-height:1.4;">${issuesList}</ul><div style="margin-top:.4rem;font-size:.75rem;">These constraints are not in xAI's supported schema subset. The generated Pydantic model will omit them; add manual validation if needed.</div>`;
+      xaiConstraintsWarnEl.style.display = 'flex';
+    }
+  }
+  
+  if (m && !m.strict && m.note) {
+    warnTxt.textContent = m.note;
+    warnEl.style.display = 'flex';
+  } else if (m && m.strict) {
+    infoTxt.textContent = 'This model supports Structured Outputs — the schema is enforced server-side.';
+    infoEl.style.display = 'flex';
+    strictModeInfoEl.style.display = 'flex';
+  }
+  updateSeedToggleState();
+  updateMaxTokensDefault();
+  if (STATE.fields && STATE.fields.length > 0) {
+    renderFields();
+  }
+  refreshPreview();
+}
+
+function toggleSeedRow() {
+  STATE.useSeed = document.getElementById('use-seed').checked;
+  document.getElementById('seed-row').style.display = STATE.useSeed ? 'block' : 'none';
+}
+
+function toggleMaxTokensRow() {
+  STATE.useMaxTokens = document.getElementById('use-max-tokens').checked;
+  document.getElementById('max-tokens-row').style.display = STATE.useMaxTokens ? 'block' : 'none';
+}
+
+function updateMaxTokensDefault() {
+  const list = MODELS[STATE.provider] || [];
+  const m = list.find(x => x.id === STATE.model);
+  const maxTokensInput = document.getElementById('max-tokens-val');
+  if (m && m.defaultMaxTokens && maxTokensInput) {
+    maxTokensInput.value = m.defaultMaxTokens;
+    STATE.maxTokensVal = m.defaultMaxTokens;
+  }
+}
+
+function updateSeedToggleState() {
+  const list = MODELS[STATE.provider] || [];
+  const m = list.find(x => x.id === STATE.model);
+  const seedInput   = document.getElementById('use-seed');
+  const seedUnsupportedMsg = document.getElementById('seed-unsupported-msg');
+
+  if (m && !m.supportsSeed) {
+    seedInput.disabled = true;
+    seedInput.checked  = false;
+    STATE.useSeed = false;
+    document.getElementById('seed-row').style.display = 'none';
+    if (seedUnsupportedMsg) {
+      seedUnsupportedMsg.style.display = 'inline-block';
+      seedUnsupportedMsg.textContent = `${m.label} does not support the seed parameter`;
+    }
+  } else {
+    seedInput.disabled = false;
+    if (seedUnsupportedMsg) {
+      seedUnsupportedMsg.style.display = 'none';
+    }
+  }
+}
+
+// ─── FIELD DATA MODEL ────────────────────────────────────────────────────────
+function newField(type, overrides) {
+  return Object.assign({
+    id: STATE.nextFieldId++,
+    name: '',
+    title: '',
+    type: type || 'string',
+    description: '',
+    required: true,
+    nullable: false,
+    // string
+    format: '',
+    enumValues: [],
+    // array
+    arrayItemType: 'string',
+    arrayMinItems: null,
+    arrayMaxItems: null,
+    isTuple: false,
+    tupleTypes: [], // ['string', 'number', ...]
+    // number/integer constraints
+    numericConstraintType: 'unconstrained', // 'unconstrained' | 'range' | 'grid'
+    numericMin: null,
+    numericMax: null,
+    gridValues: [],
+    gridRaw: '',
+    // object / array-of-objects sub-fields
+    subFields: [],
+    // UI state
+    open: true,
+  }, overrides || {});
+}
+
+// ─── FIELD LOOKUP HELPERS ────────────────────────────────────────────────────
+// Returns the array that contains the field with the given id, and the field itself.
+// Searches root-level and one level of subFields.
+function findFieldAndList(fieldId, list) {
+  list = list || STATE.fields;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].id === fieldId) return { list, field: list[i], index: i };
+  }
+  for (const f of list) {
+    if (f.subFields && f.subFields.length) {
+      const res = findFieldAndList(fieldId, f.subFields);
+      if (res) return res;
+    }
+  }
+  return null;
+}
+
+function findField(fieldId) {
+  const res = findFieldAndList(fieldId);
+  return res ? res.field : null;
+}
+
+// ─── ADD / REMOVE FIELDS ─────────────────────────────────────────────────────
+function addField(type, parentId) {
+  const f = newField(type);
+  if (parentId != null) {
+    const parent = findField(parentId);
+    if (parent) { parent.subFields.push(f); }
+  } else {
+    STATE.fields.push(f);
+  }
+  renderFields();
+  refreshPreview();
+}
+
+function removeField(fieldId) {
+  const res = findFieldAndList(fieldId);
+  if (!res) return;
+  res.list.splice(res.index, 1);
+  renderFields();
+  refreshPreview();
+}
+
+// ─── SET FIELD PROPERTIES ────────────────────────────────────────────────────
+function setFieldProp(fieldId, key, val) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f[key] = val;
+  if (key === 'type') {
+    // reset type-specific state when switching types
+    f.enumValues = [];
+    f.format = '';
+    f.numericConstraintType = 'unconstrained';
+    f.numericMin = null; f.numericMax = null;
+    f.gridValues = []; f.gridRaw = '';
+    f.arrayItemType = 'string';
+    f.arrayMinItems = null; f.arrayMaxItems = null;
+    f.isTuple = false;
+    f.tupleTypes = [];
+    if (val !== 'object' && val !== 'array') f.subFields = [];
+    renderFields();
+  }
+  refreshPreview();
+}
+
+function toggleFieldOpen(fieldId) {
+  const f = findField(fieldId);
+  if (f) { f.open = !f.open; renderFields(); }
+}
+
+// ─── HELPER: STRICT MODE CHECK ────────────────────────────────────────────────
+function isStrictModeActive() {
+  const list = MODELS[STATE.provider] || [];
+  const m = list.find(x => x.id === STATE.model);
+  return m && m.strict;
+}
+
+// ─── ENUM ────────────────────────────────────────────────────────────────────
+function addEnumValue(fieldId) {
+  const f = findField(fieldId);
+  if (!f) return;
+  const inp = document.getElementById('enum-input-' + fieldId);
+  const val = inp.value.trim();
+  if (!val || f.enumValues.includes(val)) { inp.value = ''; return; }
+  f.enumValues.push(val);
+  inp.value = '';
+  renderFields();
+  refreshPreview();
+}
+
+function removeEnumValue(fieldId, val) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.enumValues = f.enumValues.filter(v => v !== val);
+  renderFields();
+  refreshPreview();
+}
+
+function toggleTupleMode(fieldId) {
+  const f = findField(fieldId);
+  if (!f) return;
+  const cb = document.getElementById('ftuple-' + fieldId);
+  if (!cb) return;
+  f.isTuple = cb.checked;
+  document.getElementById('tuple-config-' + fieldId).style.display = f.isTuple ? 'block' : 'none';
+  document.getElementById('array-standard-config-' + fieldId).style.display = f.isTuple ? 'none' : 'block';
+  // Also clear subFields if switching to tuple mode
+  if (f.isTuple) f.subFields = [];
+  renderFields();
+  refreshPreview();
+}
+
+function addTupleItem(fieldId, type) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.tupleTypes.push(type);
+  renderFields();
+  refreshPreview();
+}
+
+function removeTupleItem(fieldId, idx) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.tupleTypes.splice(idx, 1);
+  renderFields();
+  refreshPreview();
+}
+
+// ─── NUMERIC CONSTRAINTS ─────────────────────────────────────────────────────
+function setNumericConstraintType(fieldId, mode) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.numericConstraintType = mode;
+  if (mode !== 'range') { f.numericMin = null; f.numericMax = null; }
+  if (mode !== 'grid')  { f.gridValues = []; f.gridRaw = ''; }
+  renderFields();
+  refreshPreview();
+}
+
+function onNumericBoundChange(fieldId, bound, rawVal) {
+  const f = findField(fieldId);
+  if (!f) return;
+  const val = rawVal === '' ? null : parseFloat(rawVal);
+  if (bound === 'min') f.numericMin = val;
+  else                 f.numericMax = val;
+  const errorDiv = document.getElementById('range-error-' + fieldId);
+  if (errorDiv) {
+    errorDiv.innerHTML = (f.numericMin !== null && f.numericMax !== null && f.numericMin > f.numericMax)
+      ? '<div class="warn-banner" style="margin-top:.5rem;">⚠️ Minimum must be ≤ Maximum</div>'
+      : '';
+  }
+  refreshPreview();
+}
+
+function parseGridValues(input, fieldType) {
+  const items = input.split(/[,\n]+/).map(s => s.trim()).filter(s => s.length > 0);
+  const parsed = [];
+  items.forEach(item => {
+    const num = fieldType === 'integer' ? parseInt(item, 10) : parseFloat(item);
+    if (!isNaN(num)) parsed.push(num);
+  });
+  return [...new Set(parsed)].sort((a, b) => a - b);
+}
+
+function commitGridValues(fieldId) {
+  const f = findField(fieldId);
+  if (!f) return;
+  const textarea = document.getElementById('fgrid-' + fieldId);
+  if (!textarea) return;
+  f.gridRaw    = textarea.value;
+  f.gridValues = parseGridValues(textarea.value, f.type);
+  // update tag list in-place to avoid destroying textarea focus
+  const config = textarea.closest('.numeric-config');
+  if (config) {
+    let tagList = config.querySelector('.grid-tag-list');
+    if (!tagList) {
+      tagList = document.createElement('div');
+      tagList.className = 'grid-tag-list';
+      config.appendChild(tagList);
+    }
+    tagList.innerHTML = f.gridValues.map(v =>
+      `<span class="grid-tag">${escHtml(String(v))}<span class="grid-tag-x" onclick="removeGridValue(${fieldId},${v})">✕</span></span>`
+    ).join('');
+  }
+  refreshPreview();
+}
+
+function removeGridValue(fieldId, val) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.gridValues = f.gridValues.filter(v => v !== val);
+  f.gridRaw    = f.gridValues.join(', ');
+  renderFields();
+  refreshPreview();
+}
+
+// ─── DRAG AND DROP ────────────────────────────────────────────────────────────
+
+function _clearDropZones() {
+  document.querySelectorAll('.field-drop-zone.drop-before, .field-drop-zone.drop-after, .field-drop-zone.drop-into')
+    .forEach(el => el.classList.remove('drop-before', 'drop-after', 'drop-into'));
+  document.querySelectorAll('.sublist-drop-zone.active')
+    .forEach(el => el.classList.remove('active'));
+}
+
+function onDragStart(e, fieldId, parentId) {
+  e.stopPropagation();
+  STATE._dragFieldId  = fieldId;
+  STATE._dragParentId = parentId != null ? parentId : null;
+  STATE._dragZone     = null;
+  STATE._dragTargetId = null;
+  e.dataTransfer.effectAllowed = 'move';
+  // Slight delay so the browser captures the ghost image before we dim it
+  setTimeout(() => {
+    const el = document.getElementById('fblock-' + fieldId);
+    if (el) el.style.opacity = '0.4';
+  }, 0);
+}
+
+function onDragEnd(e) {
+  e.stopPropagation();
+  const el = document.getElementById('fblock-' + STATE._dragFieldId);
+  if (el) el.style.opacity = '';
+  _clearDropZones();
+  STATE._dragZone     = null;
+  STATE._dragTargetId = null;
+}
+
+function onDragOver(e, fieldId, parentId) {
+  e.preventDefault();
+  e.stopPropagation(); // prevent parent drop zones from stealing this event
+  e.dataTransfer.dropEffect = 'move';
+
+  const srcId = STATE._dragFieldId;
+  if (srcId == null || srcId === fieldId) return;
+
+  const zone = document.getElementById('fdropzone-' + fieldId);
+  if (!zone) return;
+
+  const rect   = zone.getBoundingClientRect();
+  const relY   = e.clientY - rect.top;
+  const height = rect.height;
+
+  const targetField = findField(fieldId);
+  const canNest = targetField && (
+    targetField.type === 'object' ||
+    (targetField.type === 'array' && targetField.arrayItemType === 'object')
+  );
+
+  // Use fixed pixel bands (max 28px) so zones are always hit-able on both
+  // short (closed) and tall (open) blocks.
+  const band = Math.min(28, height * 0.3);
+  let newZone;
+  if (canNest && relY > band && relY < height - band) {
+    newZone = 'into';
+  } else if (relY <= height / 2) {
+    newZone = 'before';
+  } else {
+    newZone = 'after';
+  }
+
+  if (STATE._dragTargetId !== fieldId || STATE._dragZone !== newZone) {
+    _clearDropZones();
+    STATE._dragZone     = newZone;
+    STATE._dragTargetId = fieldId;
+    zone.classList.add('drop-' + newZone);
+  }
+}
+
+function onDragLeave(e, fieldId) {
+  const zone = document.getElementById('fdropzone-' + fieldId);
+  if (!zone) return;
+  // Only clear when the cursor genuinely leaves this zone (not moving into a child)
+  if (zone.contains(e.relatedTarget)) return;
+  zone.classList.remove('drop-before', 'drop-after', 'drop-into');
+  // NOTE: intentionally do NOT clear STATE._dragZone/_dragTargetId here.
+  // dragleave fires just before drop in some browsers, which would null out the
+  // zone and cause onDrop to bail. The state is cleaned up inside onDrop itself.
+}
+
+// Sublist-level drop zone (append to end of a subfield list)
+function onSublistDragOver(e, parentId) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  const el = document.getElementById('sublist-dropzone-' + parentId);
+  if (el) el.classList.add('active');
+}
+
+function onSublistDragLeave(e, parentId) {
+  const el = document.getElementById('sublist-dropzone-' + parentId);
+  if (!el) return;
+  if (el.contains(e.relatedTarget)) return;
+  el.classList.remove('active');
+}
+
+function onSublistDrop(e, parentId) {
+  e.preventDefault();
+  e.stopPropagation();
+  _clearDropZones();
+
+  const srcId = STATE._dragFieldId;
+  if (srcId == null) return;
+
+  const parent = findField(parentId);
+  if (!parent) return;
+  const canNest = parent.type === 'object' ||
+                  (parent.type === 'array' && parent.arrayItemType === 'object');
+  if (!canNest) return;
+
+  // Remove from source list
+  const srcRes = findFieldAndList(srcId);
+  if (!srcRes) return;
+  // Cannot drop a field into its own descendant
+  if (_isDescendant(srcRes.field, parentId)) return;
+
+  srcRes.list.splice(srcRes.index, 1);
+
+  // Append to the end of target subFields
+  parent.subFields.push(srcRes.field);
+
+  STATE._dragFieldId  = null;
+  STATE._dragParentId = null;
+  STATE._dragZone     = null;
+  STATE._dragTargetId = null;
+  renderFields();
+  refreshPreview();
+}
+
+function onDrop(e, targetFieldId, parentId) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const zone  = STATE._dragZone;
+  const srcId = STATE._dragFieldId;
+
+  _clearDropZones();
+  STATE._dragZone     = null;
+  STATE._dragTargetId = null;
+
+  if (srcId == null || srcId === targetFieldId || zone == null) return;
+
+  // ── 'into': make src a subfield of target ──────────────────────────────────
+  if (zone === 'into') {
+    const targetField = findField(targetFieldId);
+    if (!targetField) return;
+    const canNest = targetField.type === 'object' ||
+                    (targetField.type === 'array' && targetField.arrayItemType === 'object');
+    if (!canNest) return;
+    // Guard: cannot drop a field into one of its own descendants
+    if (_isDescendant(findField(srcId), targetFieldId)) return;
+
+    const srcRes = findFieldAndList(srcId);
+    if (!srcRes) return;
+    srcRes.list.splice(srcRes.index, 1);
+    targetField.subFields.push(srcRes.field);
+
+    STATE._dragFieldId  = null;
+    STATE._dragParentId = null;
+    renderFields();
+    refreshPreview();
+    return;
+  }
+
+  // ── 'before' / 'after': reorder within the target's parent list ────────────
+  // Determine destination list (the list that contains targetFieldId)
+  const dstRes = findFieldAndList(targetFieldId);
+  if (!dstRes) return;
+
+  const srcRes = findFieldAndList(srcId);
+  if (!srcRes) return;
+
+  // Guard: cannot drop into own descendant
+  if (_isDescendant(srcRes.field, targetFieldId)) return;
+
+  const srcList = srcRes.list;
+  const dstList = dstRes.list;
+
+  // Remove source from its current position
+  const srcIdx = srcRes.index;
+  srcList.splice(srcIdx, 1);
+
+  // Re-find target index after removal (list may have shifted if same list)
+  const dstIdx = dstList.findIndex(f => f.id === targetFieldId);
+  if (dstIdx === -1) {
+    // Target was the src itself somehow — push to end
+    dstList.push(srcRes.field);
+  } else {
+    const insertAt = zone === 'before' ? dstIdx : dstIdx + 1;
+    dstList.splice(insertAt, 0, srcRes.field);
+  }
+
+  STATE._dragFieldId  = null;
+  STATE._dragParentId = null;
+  renderFields();
+  refreshPreview();
+}
+
+// Returns true if `field` has `targetId` somewhere in its descendant tree
+function _isDescendant(field, targetId) {
+  if (!field || !field.subFields) return false;
+  for (const sf of field.subFields) {
+    if (sf.id === targetId) return true;
+    if (_isDescendant(sf, targetId)) return true;
+  }
+  return false;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderFields() {
+  const container = document.getElementById('root-field-list');
+  const emptyMsg  = document.getElementById('empty-schema-msg');
+
+  const hasFields = STATE.fields.length > 0;
+  emptyMsg.style.display = hasFields ? 'none' : 'block';
+  container.innerHTML = renderFieldList(STATE.fields, null);
+  wireFieldList(STATE.fields);
+}
+
+function renderFieldList(fields, parentId) {
+  return fields.map(f => renderFieldBlock(f, parentId)).join('');
+}
+
+function renderFieldBlock(f, parentId) {
+  const pIdAttr = parentId != null ? parentId : 'null';
+  const nameDisplay = f.name
+    ? `<span class="field-name-badge">${escHtml(f.name)}</span>`
+    : `<span class="field-name-badge field-name-placeholder">(unnamed)</span>`;
+
+  const arrayItemLabel = (f.type === 'array' && f.arrayItemType)
+    ? `<span style="font-size:.68rem;color:var(--muted);font-family:var(--mono);margin-left:.2rem">[ ${f.arrayItemType} ]</span>`
+    : '';
+
+  const canNest = (f.type === 'object') ||
+                  (f.type === 'array' && f.arrayItemType === 'object');
+
+  const header = `
+    <div class="field-block-header${f.open ? ' open' : ''}"
+         onclick="toggleFieldOpen(${f.id})"
+         ondragover="onDragOver(event,${f.id},${pIdAttr})"
+         ondrop="onDrop(event,${f.id},${pIdAttr})">
+      <span class="drag-handle" draggable="false" title="Drag to reorder">⠿</span>
+      <span class="type-dot" data-ftype="${f.type}"></span>
+      ${nameDisplay}
+      ${arrayItemLabel}
+      <span class="type-chip" data-ftype="${f.type}">${f.type}</span>
+      <span class="req-chip ${f.required ? 'req' : 'opt'}" id="reqchip-${f.id}">${f.required ? 'required' : 'optional'}</span>
+      <span class="field-chevron${f.open ? ' open' : ''}">▶</span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:.2rem;padding:.2rem .4rem;"
+        onclick="event.stopPropagation(); removeField(${f.id})" title="Remove field">✕</button>
+    </div>`;
+
+  const body = `
+    <div class="field-block-body${f.open ? ' open' : ''}">
+      ${renderFieldBody(f, parentId)}
+    </div>`;
+
+  const intoOverlay = canNest
+    ? `<div class="drop-into-overlay"><span>drop into ${f.name || f.type}</span></div>`
+    : '';
+
+  return `
+  <div class="field-drop-zone" id="fdropzone-${f.id}"
+       ondragover="onDragOver(event,${f.id},${pIdAttr})"
+       ondragleave="onDragLeave(event,${f.id})"
+       ondrop="onDrop(event,${f.id},${pIdAttr})">
+    <div class="drop-indicator drop-indicator-top"
+         ondragover="onDragOver(event,${f.id},${pIdAttr})"
+         ondrop="onDrop(event,${f.id},${pIdAttr})"></div>
+    <div class="field-block" id="fblock-${f.id}" data-ftype="${f.type}"
+         draggable="true"
+         ondragstart="onDragStart(event,${f.id},${pIdAttr})"
+         ondragend="onDragEnd(event)">
+      ${intoOverlay}
+      ${header}
+      ${body}
+    </div>
+    <div class="drop-indicator drop-indicator-bottom"
+         ondragover="onDragOver(event,${f.id},${pIdAttr})"
+         ondrop="onDrop(event,${f.id},${pIdAttr})"></div>
+  </div>`;
+}
+
+function renderFieldBody(f, parentId) {
+  // Type selector buttons
+  const types = ['string','number','integer','boolean','array','object'];
+  const typeDescriptions = {
+    'string': 'Free-form text or constrained values',
+    'number': 'Floating-point decimal numbers',
+    'integer': 'Whole numbers only',
+    'boolean': 'True or false',
+    'array': 'Ordered list of items',
+    'object': 'Nested structure with sub-fields'
+  };
+  const typeBtns = types.map(t =>
+    `<button class="type-btn${f.type === t ? ' active' : ''}" data-t="${t}"
+      onclick="setFieldProp(${f.id},'type','${t}')" title="${typeDescriptions[t]}">${t}</button>`
+  ).join('');
+
+  let extra = '';
+
+  if (f.type === 'string') {
+    const tags = f.enumValues.map(v =>
+      `<span class="enum-tag">${escHtml(v)}<span class="enum-tag-x" onclick="removeEnumValue(${f.id},'${escHtml(v)}')">✕</span></span>`
+    ).join('');
+    
+    const isGemini = STATE.provider === 'gemini';
+    const isAnthropic = STATE.provider === 'anthropic';
+    const showFormatSelector = isGemini || isAnthropic;
+    
+    // Anthropic supports: date-time, time, date, duration, email, hostname, uri, ipv4, ipv6, uuid
+    // Gemini supports:    date-time, time, date, email, uri
+    const formatOptions = [
+      {val: '', label: 'None', providers: ['gemini', 'anthropic']},
+      {val: 'date-time', label: 'Date-Time (RFC 3339)', providers: ['gemini', 'anthropic']},
+      {val: 'date', label: 'Date (RFC 3339)', providers: ['gemini', 'anthropic']},
+      {val: 'time', label: 'Time (RFC 3339)', providers: ['gemini', 'anthropic']},
+      {val: 'duration', label: 'Duration (ISO 8601)', providers: ['anthropic']},
+      {val: 'email', label: 'Email (RFC 5322)', providers: ['gemini', 'anthropic']},
+      {val: 'hostname', label: 'Hostname (RFC 1123)', providers: ['anthropic']},
+      {val: 'uri', label: 'URI (RFC 3986)', providers: ['gemini', 'anthropic']},
+      {val: 'ipv4', label: 'IPv4 Address', providers: ['anthropic']},
+      {val: 'ipv6', label: 'IPv6 Address', providers: ['anthropic']},
+      {val: 'uuid', label: 'UUID', providers: ['anthropic']},
+    ];
+    const formatOpts = formatOptions
+      .filter(opt => opt.providers.includes(STATE.provider))
+      .map(opt => `<option value="${opt.val}"${f.format === opt.val ? ' selected' : ''}>${opt.label}</option>`).join('');
+
+    const providerTag = isGemini ? 'Gemini' : 'Anthropic';
+    const formatHtml = showFormatSelector ? `
+      <div class="form-row" style="margin-top:.75rem;">
+        <label class="label-with-tooltip">
+          Format constraint <span class="tag" style="background:var(--accent-lt);color:var(--accent);font-size:.65rem;padding:.1rem .3rem;border-radius:3px;margin-left:.2rem;">${providerTag}</span>
+          <span class="tooltip-text">Forces the string to match a specific format (e.g. date, email). Available for ${providerTag} models.</span>
+        </label>
+        <select id="fformat-${f.id}">${formatOpts}</select>
+      </div>
+    ` : '';
+
+    extra = `
+      ${formatHtml}
+      <div class="form-row" style="margin-top:.75rem;">
+        <label class="label-with-tooltip">
+          Enum values
+          <span class="tooltip-text">Leave empty to allow any string. Add values to restrict output to only those choices (like a dropdown). Example: positive, negative, neutral.</span>
+          <small>— leave empty for free-form string; add values to constrain output</small>
+        </label>
+        <div class="enum-editor">
+          <div class="enum-tag-list" id="enum-tags-${f.id}">${tags}</div>
+          <div class="enum-add-row">
+            <input type="text" id="enum-input-${f.id}" placeholder="Type a value and press Enter" />
+            <button class="btn btn-secondary btn-sm" onclick="addEnumValue(${f.id})">Add</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (f.type === 'number' || f.type === 'integer') {
+    const ct = f.numericConstraintType || 'unconstrained';
+    const constraintModeHtml = `
+      <div class="form-row" style="margin-top:.75rem;">
+        <label class="label-with-tooltip">
+          Constraint
+          <span class="tooltip-text">Choose how to restrict numeric values: Unconstrained (any value), Min/Max Range (between two bounds), or Discrete Grid (only specific allowed values).</span>
+        </label>
+        <div class="constraint-mode-group">
+          <div class="constraint-radio">
+            <input type="radio" id="cm-unconstrained-${f.id}" name="constraint-${f.id}" value="unconstrained"
+              ${ct === 'unconstrained' ? 'checked' : ''}
+              onchange="setNumericConstraintType(${f.id},'unconstrained')" />
+            <label for="cm-unconstrained-${f.id}" class="constraint-option-wrapper">
+              <span>Unconstrained</span>
+              <span class="tooltip-text">The model can output any numeric value with no restrictions.</span>
+            </label>
+          </div>
+          <div class="constraint-radio">
+            <input type="radio" id="cm-range-${f.id}" name="constraint-${f.id}" value="range"
+              ${ct === 'range' ? 'checked' : ''}
+              onchange="setNumericConstraintType(${f.id},'range')" />
+            <label for="cm-range-${f.id}" class="constraint-option-wrapper">
+              <span>Min / Max Range</span>
+              <span class="tooltip-text">Values must fall between a minimum and maximum. Example: temperatures between -10 and 40 degrees.</span>
+            </label>
+          </div>
+          <div class="constraint-radio">
+            <input type="radio" id="cm-grid-${f.id}" name="constraint-${f.id}" value="grid"
+              ${ct === 'grid' ? 'checked' : ''}
+              onchange="setNumericConstraintType(${f.id},'grid')" />
+            <label for="cm-grid-${f.id}" class="constraint-option-wrapper">
+              <span>Discrete Grid</span>
+              <span class="tooltip-text">Only specific allowed values. Example: ratings of 1, 2, 3, 4, 5 or percentages at 0, 25, 50, 75, 100.</span>
+            </label>
+          </div>
+        </div>
+      </div>`;
+
+    let constraintDetailsHtml = '';
+    if (ct === 'range') {
+      constraintDetailsHtml = `
+        <div class="numeric-config">
+          <div class="range-inputs">
+            <div>
+              <label class="label-with-tooltip">
+                Min value
+                <span class="tooltip-text">Lower bound of the allowed range. Leave blank for no lower limit.</span>
+              </label>
+              <small>(leave blank for no lower bound)</small>
+              <input type="number" id="fmin-${f.id}" placeholder="none"
+                value="${f.numericMin !== null ? f.numericMin : ''}"
+                onchange="onNumericBoundChange(${f.id},'min',this.value)" />
+            </div>
+            <div>
+              <label class="label-with-tooltip">
+                Max value
+                <span class="tooltip-text">Upper bound of the allowed range. Leave blank for no upper limit.</span>
+              </label>
+              <small>(leave blank for no upper bound)</small>
+              <input type="number" id="fmax-${f.id}" placeholder="none"
+                value="${f.numericMax !== null ? f.numericMax : ''}"
+                onchange="onNumericBoundChange(${f.id},'max',this.value)" />
+            </div>
+          </div>
+          <div id="range-error-${f.id}"></div>
+        </div>`;
+    } else if (ct === 'grid') {
+      const gridTags = f.gridValues.map(v =>
+        `<span class="grid-tag">${escHtml(String(v))}<span class="grid-tag-x" onclick="removeGridValue(${f.id},${v})">✕</span></span>`
+      ).join('');
+      constraintDetailsHtml = `
+        <div class="numeric-config">
+          <div class="form-row">
+            <label class="label-with-tooltip">
+              Allowed values
+              <span class="tooltip-text">List all valid values the model can choose from. Separate by commas or newlines. Example: 0.5, 1.0, 1.5, 2.0 (or one per line).</span>
+            </label>
+            <small>— enter numbers separated by commas or newlines</small>
+            <textarea id="fgrid-${f.id}" class="grid-textarea" placeholder="e.g. 0.5, 1.0, 1.5, 2.0"
+              onblur="commitGridValues(${f.id})">${f.gridRaw !== undefined ? f.gridRaw : f.gridValues.join(', ')}</textarea>
+          </div>
+          ${f.gridValues.length > 0 ? `<div class="grid-tag-list">${gridTags}</div>` : ''}
+        </div>`;
+    }
+    extra = constraintModeHtml + constraintDetailsHtml;
+  }
+
+  if (f.type === 'boolean') {
+    extra = `<div class="boolean-constraint-badge" style="margin-top:.6rem;">Constraint: true or false</div>`;
+  }
+
+  if (f.type === 'array') {
+    const itemTypes = ['string','number','integer','boolean','object'];
+    const itemOpts = itemTypes.map(t =>
+      `<option value="${t}"${f.arrayItemType === t ? ' selected' : ''}>${t}</option>`
+    ).join('');
+
+    // Tuple configuration (Gemini only)
+    const isGemini = STATE.provider === 'gemini';
+    let tupleHtml = '';
+    
+    if (isGemini) {
+      const tupleTags = f.tupleTypes.map((t, idx) => 
+        `<span class="enum-tag">${t}<span class="enum-tag-x" onclick="removeTupleItem(${f.id}, ${idx})">✕</span></span>`
+      ).join('');
+      
+      const addTupleOpts = itemTypes.filter(t => t !== 'object').map(t => 
+        `<button class="btn btn-secondary btn-sm" onclick="addTupleItem(${f.id}, '${t}')">+ ${t}</button>`
+      ).join('');
+
+      tupleHtml = `
+      <div class="form-row" style="margin-top:.75rem;">
+        <label class="toggle-row" style="margin-bottom:.4rem;">
+          <label class="toggle">
+            <input type="checkbox" id="ftuple-${f.id}"${f.isTuple ? ' checked' : ''} onchange="toggleTupleMode(${f.id})" />
+            <div class="toggle-track"></div><div class="toggle-thumb"></div>
+          </label>
+          <label class="label-with-tooltip" style="font-weight:600;">
+            Tuple Mode (prefixItems) <span class="tag" style="background:var(--accent-lt);color:var(--accent);font-size:.65rem;padding:.1rem .3rem;border-radius:3px;margin-left:.2rem;">Gemini</span>
+            <span class="tooltip-text">Specify an exact sequence of different types (e.g. [string, number, boolean]). Only for Gemini models.</span>
+          </label>
+        </label>
+      </div>
+      
+      <div id="tuple-config-${f.id}" style="display:${f.isTuple ? 'block' : 'none'}; padding:.75rem; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); margin-top:.5rem;">
+        <label>Tuple Sequence <small>(order matters)</small></label>
+        <div class="enum-tag-list" style="margin-bottom:.6rem; min-height:30px; padding:.3rem; background:var(--surface); border:1px solid var(--border-2); border-radius:4px;">
+          ${f.tupleTypes.length > 0 ? tupleTags : '<span style="color:var(--muted);font-size:.75rem;font-style:italic;line-height:22px;">Empty tuple — add types below</span>'}
+        </div>
+        <div style="display:flex; gap:.4rem; flex-wrap:wrap;">
+          ${addTupleOpts}
+        </div>
+      </div>
+      `;
+    }
+
+    // If item type is object, show sub-fields editor
+    const subFieldsHtml = (!f.isTuple && f.arrayItemType === 'object')
+      ? renderSubFieldsBlock(f)
+      : '';
+
+    extra = `
+      ${tupleHtml}
+      <div id="array-standard-config-${f.id}" class="array-config" style="margin-top:.75rem; display:${f.isTuple ? 'none' : 'block'};">
+        <div class="form-row">
+          <label class="label-with-tooltip">
+            Item type
+            <span class="tooltip-text">What type of items does this array contain? For example, an array of strings (tags), numbers (scores), or objects (records with multiple fields).</span>
+          </label>
+          <select id="fait-${f.id}" onchange="onArrayItemTypeChange(${f.id}, this.value)">${itemOpts}</select>
+        </div>
+        <div class="form-row-inline">
+          <div>
+            <label class="label-with-tooltip">
+              Min items
+              <span class="tooltip-text">Minimum number of items the array must contain. Leave blank for no minimum (can be empty).</span>
+            </label>
+            <input type="number" id="famin-${f.id}" min="0" placeholder="none" value="${f.arrayMinItems !== null ? f.arrayMinItems : ''}" />
+          </div>
+          <div>
+            <label class="label-with-tooltip">
+              Max items
+              <span class="tooltip-text">Maximum number of items allowed in the array. Leave blank for no maximum (unlimited).</span>
+            </label>
+            <input type="number" id="famax-${f.id}" min="0" placeholder="none" value="${f.arrayMaxItems !== null ? f.arrayMaxItems : ''}" />
+          </div>
+        </div>
+      </div>
+      ${subFieldsHtml}`;
+  }
+
+  if (f.type === 'object') {
+    extra = renderSubFieldsBlock(f);
+  }
+
+  return `
+    <div class="form-row">
+      <label>Field name <small>(snake_case)</small></label>
+      <input type="text" id="fn-${f.id}" value="${escHtml(f.name)}" placeholder="e.g. sentiment_label" />
+    </div>
+    ${STATE.provider === 'gemini' ? `
+    <div class="form-row">
+      <label class="label-with-tooltip">
+        Title <span class="tag" style="background:var(--accent-lt);color:var(--accent);font-size:.65rem;padding:.1rem .3rem;border-radius:3px;margin-left:.2rem;">Gemini</span>
+        <span class="tooltip-text">Optional: A short description of the property used in the JSON Schema. Leave blank to omit it from the schema.</span>
+      </label>
+      <input type="text" id="ft-${f.id}" value="${escHtml(f.title)}" placeholder="e.g. Sentiment Label (optional)" />
+    </div>` : ''}
+    <div class="form-row">
+      <label>Description <small>— shown to the model; be specific</small></label>
+      <input type="text" id="fd-${f.id}" value="${escHtml(f.description)}" placeholder="e.g. Monetary policy stance of the statement" />
+    </div>
+    <div class="form-row">
+      <label>Type</label>
+      <div class="type-btn-group">${typeBtns}</div>
+    </div>
+    ${extra}
+    <div class="toggle-row" style="margin-top:.65rem;">
+      ${isStrictModeActive() ? '' : `
+      <label class="toggle">
+        <input type="checkbox" id="freq-${f.id}"${f.required ? ' checked' : ''} />
+        <div class="toggle-track"></div><div class="toggle-thumb"></div>
+      </label>
+      <label class="label-with-tooltip">
+        Required
+        <span class="tooltip-text">When enabled, the model must always provide a value for this field — it cannot be omitted from the output.</span>
+      </label>
+      &nbsp;&nbsp;
+      `}
+      <label class="toggle">
+        <input type="checkbox" id="fnull-${f.id}"${f.nullable ? ' checked' : ''} />
+        <div class="toggle-track"></div><div class="toggle-thumb"></div>
+      </label>
+      <label class="label-with-tooltip">
+        Nullable
+        <span class="tooltip-text">${isStrictModeActive() ? 'In strict mode, all fields are required. Enable Nullable to allow the field to be null.' : 'When enabled, the field can have a null value. Useful when a field may not always have meaningful data.'}</span>
+      </label>
+    </div>`;
+}
+
+function renderSubFieldsBlock(f) {
+  const label = f.type === 'object' ? 'Object sub-fields' : 'Array item sub-fields';
+  const subList = f.subFields && f.subFields.length > 0
+    ? renderFieldList(f.subFields, f.id)
+    : `<div class="no-subfields-hint">No sub-fields yet — add one below</div>`;
+
+  // Sub-palette for nested fields
+  const subTypes = ['string','number','integer','boolean','array','object'];
+  const subBtns = subTypes.map(t =>
+    `<button class="palette-btn" data-type="${t}" style="font-size:.72rem;padding:.22rem .55rem;"
+      onclick="addField('${t}',${f.id})" title="${t}">${t}</button>`
+  ).join('');
+
+  // Drop zone at the bottom of the subfield list (covers the empty-list case too)
+  const sublistDropZone = `
+    <div class="sublist-drop-zone" id="sublist-dropzone-${f.id}"
+         ondragover="onSublistDragOver(event,${f.id})"
+         ondragleave="onSublistDragLeave(event,${f.id})"
+         ondrop="onSublistDrop(event,${f.id})">
+    </div>`;
+
+  return `
+    <div class="subfields-wrapper">
+      <div class="subfields-header">
+        <span>{ } ${label}</span>
+      </div>
+      <div class="subfields-body">
+        <div class="field-list" id="sublist-${f.id}">${subList}</div>
+        ${sublistDropZone}
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.35rem;">${subBtns}</div>
+      </div>
+    </div>`;
+}
+
+function onArrayItemTypeChange(fieldId, newItemType) {
+  const f = findField(fieldId);
+  if (!f) return;
+  f.arrayItemType = newItemType;
+  if (newItemType !== 'object') f.subFields = [];
+  renderFields();
+  refreshPreview();
+}
+
+// ─── WIRE UP FIELD INPUTS ─────────────────────────────────────────────────────
+function wireFieldList(fields) {
+  fields.forEach(f => {
+    wireField(f);
+    if (f.subFields && f.subFields.length) wireFieldList(f.subFields);
+  });
+}
+
+function wireField(f) {
+  const nameInp = document.getElementById('fn-' + f.id);
+  if (nameInp) nameInp.addEventListener('input', e => {
+    f.name = e.target.value.trim();
+    // update header badge in-place
+    const badge = document.querySelector(`#fblock-${f.id} .field-name-badge`);
+    if (badge) {
+      badge.textContent = f.name || '(unnamed)';
+      badge.classList.toggle('field-name-placeholder', !f.name);
+    }
+    refreshPreview();
+  });
+
+  const titleInp = document.getElementById('ft-' + f.id);
+  if (titleInp) titleInp.addEventListener('input', e => { f.title = e.target.value.trim(); refreshPreview(); });
+
+  const descInp = document.getElementById('fd-' + f.id);
+  if (descInp) descInp.addEventListener('input', e => { f.description = e.target.value; refreshPreview(); });
+
+  const reqToggle = document.getElementById('freq-' + f.id);
+  if (reqToggle) reqToggle.addEventListener('change', e => {
+    f.required = e.target.checked;
+    const chip = document.getElementById('reqchip-' + f.id);
+    if (chip) { chip.textContent = f.required ? 'required' : 'optional'; chip.className = 'req-chip ' + (f.required ? 'req' : 'opt'); }
+    refreshPreview();
+  });
+
+  const nullToggle = document.getElementById('fnull-' + f.id);
+  if (nullToggle) nullToggle.addEventListener('change', e => { f.nullable = e.target.checked; refreshPreview(); });
+
+  const aitSel = document.getElementById('fait-' + f.id);
+  if (aitSel) aitSel.addEventListener('change', e => onArrayItemTypeChange(f.id, e.target.value));
+
+  const aminInp = document.getElementById('famin-' + f.id);
+  if (aminInp) aminInp.addEventListener('input', e => { f.arrayMinItems = e.target.value === '' ? null : parseInt(e.target.value, 10); refreshPreview(); });
+
+  const amaxInp = document.getElementById('famax-' + f.id);
+  if (amaxInp) amaxInp.addEventListener('input', e => { f.arrayMaxItems = e.target.value === '' ? null : parseInt(e.target.value, 10); refreshPreview(); });
+
+  const formatSel = document.getElementById('fformat-' + f.id);
+  if (formatSel) formatSel.addEventListener('change', e => { f.format = e.target.value; refreshPreview(); });
+
+  const enumInput = document.getElementById('enum-input-' + f.id);
+  if (enumInput) enumInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addEnumValue(f.id); } });
+}
+
+// ─── JSON SCHEMA BUILDER ──────────────────────────────────────────────────────
+function buildFieldSchema(f) {
+  let prop = {};
+
+  if (f.type === 'object') {
+    const subProps = {};
+    const subReq   = [];
+    (f.subFields || []).forEach(sf => {
+      if (!sf.name) return;
+      subProps[sf.name] = buildFieldSchema(sf);
+      // In strict mode, ALL fields must be in required array
+      if (isStrictModeActive()) {
+        subReq.push(sf.name);
+      } else if (sf.required) {
+        subReq.push(sf.name);
+      }
+    });
+    prop = { type: 'object', properties: subProps, additionalProperties: false };
+    if (subReq.length) prop.required = subReq;
+   } else if (f.type === 'array') {
+    if (f.isTuple && STATE.provider === 'gemini') {
+      const itemsList = f.tupleTypes.map(t => ({ type: t }));
+      prop = { 
+        type: 'array', 
+        prefixItems: itemsList,
+        minItems: itemsList.length,
+        maxItems: itemsList.length,
+      };
+      // minItems/maxItems enforce the exact tuple length — Gemini supports these keywords.
+      // items: false is JSON Schema 2020-12 syntax and is NOT in Gemini's supported subset.
+    } else if (f.arrayItemType === 'object') {
+      const subProps = {};
+      const subReq   = [];
+      (f.subFields || []).forEach(sf => {
+        if (!sf.name) return;
+        subProps[sf.name] = buildFieldSchema(sf);
+        // In strict mode, ALL fields must be in required array
+        if (isStrictModeActive()) {
+          subReq.push(sf.name);
+        } else if (sf.required) {
+          subReq.push(sf.name);
+        }
+      });
+      const items = { type: 'object', properties: subProps, additionalProperties: false };
+      if (subReq.length) items.required = subReq;
+      prop = { type: 'array', items };
+    } else {
+      prop = { type: 'array', items: { type: f.arrayItemType } };
+    }
+    
+    // Only apply min/max items if not using prefixItems
+    if (!f.isTuple || STATE.provider !== 'gemini') {
+      if (f.arrayMinItems !== null) prop.minItems = f.arrayMinItems;
+      if (f.arrayMaxItems !== null) prop.maxItems = f.arrayMaxItems;
+    }
+  } else if (f.type === 'boolean') {
+    prop = { type: 'boolean' };
+  } else if (f.type === 'number' || f.type === 'integer') {
+    prop = { type: f.type };
+    if (f.numericConstraintType === 'range') {
+      if (f.numericMin !== null) prop.minimum = f.numericMin;
+      if (f.numericMax !== null) prop.maximum = f.numericMax;
+    } else if (f.numericConstraintType === 'grid' && f.gridValues.length > 0) {
+      prop.enum = f.gridValues;
+    }
+  } else {
+    // string
+    prop = { type: 'string' };
+    if (f.enumValues.length > 0) prop.enum = f.enumValues;
+    if (f.format && (STATE.provider === 'gemini' || STATE.provider === 'anthropic')) prop.format = f.format;
+  }
+
+  if (f.title && STATE.provider === 'gemini') prop.title = f.title;
+  if (f.description) prop.description = f.description;
+
+  if (f.nullable) {
+    const desc = prop.description;
+    delete prop.description;
+    // For simple types, use union syntax ["type", "null"] — this is the Gemini-supported approach.
+    // anyOf is reserved for conditional union structures (Unions), not nullability.
+    if (prop.type && !prop.anyOf && !Array.isArray(prop.type)) {
+      prop.type = [prop.type, 'null'];
+    } else if (prop.anyOf) {
+      // anyOf is already present (e.g. from a prior union). For Gemini, the type array union
+      // approach is not applicable here. We preserve the anyOf but note this pattern may not
+      // be fully supported on all Gemini models — prefer using nullable only on simple types.
+      prop = { anyOf: [prop, { type: 'null' }] };
+    } else if (Array.isArray(prop.type)) {
+      // Already an array union — just add 'null' if not already present
+      if (!prop.type.includes('null')) prop.type = [...prop.type, 'null'];
+    }
+    if (desc) prop.description = desc;
+  }
+
+  return prop;
+}
+
+function buildJsonSchema() {
+  const name = document.getElementById('schema-name')?.value.trim() || 'output_schema';
+  const properties = {};
+  const required   = [];
+
+  STATE.fields.forEach(f => {
+    if (!f.name) return;
+    let key = f.name;
+    // avoid key collisions at root level
+    if (properties[key] !== undefined) {
+      let i = 2;
+      while (properties[key + '_' + i] !== undefined) i++;
+      key = key + '_' + i;
+    }
+    properties[key] = buildFieldSchema(f);
+    // In strict mode, ALL fields must be in required array
+    if (isStrictModeActive()) {
+      required.push(key);
+    } else if (f.required) {
+      required.push(key);
+    }
+  });
+
+  return {
+    name,
+    schema: {
+      type: 'object',
+      properties,
+      required,
+      additionalProperties: false,
+    }
+   };
+}
+
+// ─── ANTHROPIC CONSTRAINT VALIDATION ───────────────────────────────────────
+/**
+ * Detects Anthropic-incompatible JSON Schema constraints.
+ * Anthropic SDKs transform unsupported constraints by moving them to descriptions.
+ * This function identifies constraints that won't be enforced by Anthropic's API.
+ *
+ * Official limits (from Anthropic structured outputs docs):
+ *   - Supported string formats: date-time, time, date, duration, email, hostname, uri, ipv4, ipv6, uuid
+ *   - Unsupported constraints: minimum, maximum, multipleOf, minLength, maxLength, maxItems, minItems > 1
+ *   - Recursive schemas are NOT supported
+ *   - Complexity limits: max 20 strict tools, 24 optional parameters, 16 parameters with union types
+ */
+function detectAnthrcopicConstraints(fields) {
+  const issues = [];
+  let nullableCount = 0;  // nullable fields use union types internally
+  
+  function checkFields(fieldList, path = '', depth = 0) {
+    // Warn if nesting exceeds a reasonable depth (Anthropic does not support recursive schemas)
+    if (depth > 5) {
+      issues.push(`Schema nesting depth exceeds 5 levels at "${path}" — Anthropic does not support recursive schemas and deeply nested structures may cause issues.`);
+      return;
+    }
+    
+    fieldList.forEach(f => {
+      if (!f.name) return;
+      const fieldPath = path ? `${path}.${f.name}` : f.name;
+      
+      // Check for numeric constraints (minimum, maximum, multipleOf)
+      // BUG FIX: field model uses numericMin/numericMax/numericConstraintType, not minimum/maximum
+      if ((f.type === 'number' || f.type === 'integer') && f.numericConstraintType === 'range') {
+        const constraints = [];
+        if (f.numericMin !== null) constraints.push(`minimum: ${f.numericMin}`);
+        if (f.numericMax !== null) constraints.push(`maximum: ${f.numericMax}`);
+        if (constraints.length > 0) {
+          issues.push(`Field "${fieldPath}" has numeric constraints (${constraints.join(', ')}) that Anthropic doesn't enforce server-side.`);
+        }
+      }
+      
+      // Check for string constraints (minLength, maxLength) — not currently in the UI field model,
+      // but kept as a guard in case the data model is extended in the future
+      if (f.type === 'string' && (f.minLength !== undefined || f.maxLength !== undefined)) {
+        const constraints = [];
+        if (f.minLength !== undefined) constraints.push(`minLength: ${f.minLength}`);
+        if (f.maxLength !== undefined) constraints.push(`maxLength: ${f.maxLength}`);
+        issues.push(`Field "${fieldPath}" has string length constraints (${constraints.join(', ')}) that Anthropic doesn't enforce server-side.`);
+      }
+      
+      // Check for unsupported string formats
+      if (f.type === 'string' && f.format) {
+        const supportedFormats = ['date-time', 'date', 'time', 'duration', 'uri', 'email', 'hostname', 'ipv4', 'ipv6', 'uuid'];
+        if (!supportedFormats.includes(f.format)) {
+          issues.push(`Field "${fieldPath}" uses format "${f.format}" which is not supported by Anthropic's structured outputs.`);
+        }
+      }
+      
+      // Check array constraints: maxItems is not supported; minItems only supports 0 and 1
+      if (f.type === 'array') {
+        if (f.arrayMaxItems !== null) {
+          issues.push(`Field "${fieldPath}" has maxItems: ${f.arrayMaxItems} — Anthropic does not support maxItems constraints.`);
+        }
+        if (f.arrayMinItems !== null && f.arrayMinItems > 1) {
+          issues.push(`Field "${fieldPath}" has minItems: ${f.arrayMinItems} — Anthropic only supports minItems of 0 or 1.`);
+        }
+      }
+      
+      // Track nullable fields (each uses a union type, counting toward the 16-parameter union limit)
+      if (f.nullable) {
+        nullableCount++;
+      }
+      
+      // Check nested objects
+      if (f.type === 'object' && f.subFields) {
+        checkFields(f.subFields, fieldPath, depth + 1);
+      }
+      // Check array items if they're objects
+      else if (f.type === 'array' && f.arrayItemType === 'object' && f.subFields) {
+        checkFields(f.subFields, `${fieldPath}[]`, depth + 1);
+      }
+    });
+  }
+  
+  checkFields(fields);
+  
+  // Complexity warnings based on Anthropic's documented limits
+  if (nullableCount > 16) {
+    issues.push(`Schema has ${nullableCount} nullable fields — each uses a union type, and Anthropic limits union-type parameters to 16 per request.`);
+  } else if (nullableCount > 12) {
+    issues.push(`Schema has ${nullableCount} nullable fields (limit: 16) — each uses a union type. Approaching Anthropic's union-type parameter limit.`);
+  }
+  
+  // Count total fields for the 24 optional parameter limit
+  function countAllFields(fieldList) {
+    let count = 0;
+    fieldList.forEach(f => {
+      if (!f.name) return;
+      count++;
+      if ((f.type === 'object' || (f.type === 'array' && f.arrayItemType === 'object')) && f.subFields) {
+        count += countAllFields(f.subFields);
+      }
+    });
+    return count;
+  }
+  const totalFields = countAllFields(fields);
+  if (totalFields > 24) {
+    issues.push(`Schema has ${totalFields} total parameters — Anthropic limits schemas to 24 optional parameters per request.`);
+  }
+  
+  return issues;
+}
+
+// ─── XAI CONSTRAINT VALIDATION ─────────────────────────────────────────────
+/**
+ * Detects xAI-incompatible JSON Schema constraints.
+ * Per the official xAI Structured Outputs docs, the supported schema types are:
+ *   string (no minLength/maxLength), number, integer, float, object, array (no minItems/maxItems),
+ *   boolean, enum, anyOf.  allOf is NOT supported.
+ *
+ * Unsupported constraints:
+ *   - minItems / maxItems on arrays
+ *   - minContains / maxContains on arrays
+ *   - minimum / maximum on numbers/integers
+ *   - minLength / maxLength on strings
+ */
+function detectXaiConstraints(fields) {
+  const issues = [];
+
+  function checkFields(fieldList, path = '') {
+    fieldList.forEach(f => {
+      if (!f.name) return;
+      const fieldPath = path ? `${path}.${f.name}` : f.name;
+
+      // Arrays: minItems / maxItems not supported
+      if (f.type === 'array') {
+        if (f.arrayMinItems !== null) {
+          issues.push(`Field "${fieldPath}" has minItems: ${f.arrayMinItems} — xAI does not support minItems constraints on arrays.`);
+        }
+        if (f.arrayMaxItems !== null) {
+          issues.push(`Field "${fieldPath}" has maxItems: ${f.arrayMaxItems} — xAI does not support maxItems constraints on arrays.`);
+        }
+      }
+
+      // Numbers/integers: minimum / maximum not in supported schema subset
+      if ((f.type === 'number' || f.type === 'integer') && f.numericConstraintType === 'range') {
+        const constraints = [];
+        if (f.numericMin !== null) constraints.push(`minimum: ${f.numericMin}`);
+        if (f.numericMax !== null) constraints.push(`maximum: ${f.numericMax}`);
+        if (constraints.length > 0) {
+          issues.push(`Field "${fieldPath}" has numeric range constraints (${constraints.join(', ')}) — xAI structured outputs do not support minimum/maximum. Consider using a discrete grid (enum) instead.`);
+        }
+      }
+
+      // Strings: minLength / maxLength not supported (guard for future field model extensions)
+      if (f.type === 'string' && (f.minLength !== undefined || f.maxLength !== undefined)) {
+        const constraints = [];
+        if (f.minLength !== undefined) constraints.push(`minLength: ${f.minLength}`);
+        if (f.maxLength !== undefined) constraints.push(`maxLength: ${f.maxLength}`);
+        issues.push(`Field "${fieldPath}" has string length constraints (${constraints.join(', ')}) — xAI does not support minLength/maxLength.`);
+      }
+
+      // Recurse into nested objects
+      if (f.type === 'object' && f.subFields) {
+        checkFields(f.subFields, fieldPath);
+      }
+      // Recurse into array items if they're objects
+      else if (f.type === 'array' && f.arrayItemType === 'object' && f.subFields) {
+        checkFields(f.subFields, `${fieldPath}[]`);
+      }
+    });
+  }
+
+  checkFields(fields);
+  return issues;
+}
+
+// ─── SCHEMA VALIDATION ─────────────────────────────────────────────────────
+function validateSchemaForStrictMode(fields, model) {
+  const warnings = [];
+  const errors = [];
+  
+  if (!isStrictModeActive()) return { warnings, errors }; // Only validate in strict mode
+  
+  function checkFields(fieldList, path = '') {
+    fieldList.forEach(f => {
+      if (!f.name) return;
+      const fieldPath = path ? `${path}.${f.name}` : f.name;
+      
+      // Check if field is in required array (it should be in strict mode)
+      if (!f.required) {
+        warnings.push(`Field "${fieldPath}" is optional - in strict mode, all fields must be required. Optional fields should use nullable type instead.`);
+      }
+      
+      // Check nested objects
+      if (f.type === 'object' && f.subFields) {
+        checkFields(f.subFields, fieldPath);
+      }
+      // Check array items if they're objects
+      else if (f.type === 'array' && f.arrayItemType === 'object' && f.subFields) {
+        checkFields(f.subFields, `${fieldPath}[]`);
+      }
+    });
+  }
+  
+  checkFields(fields);
+  
+  return { warnings, errors };
+}
+
+// ─── CODE GENERATOR (unchanged from original) ─────────────────────────────────
+function hasAnyNamedField() {
+  function check(fields) {
+    for (const f of fields) {
+      if (f.name) return true;
+      if (f.subFields && check(f.subFields)) return true;
+    }
+    return false;
+  }
+  return check(STATE.fields);
+}
+
+function generateCode() {
+  const schemaName = document.getElementById('schema-name')?.value.trim() || 'output_schema';
+  const sysPrompt  = document.getElementById('sys-prompt')?.value  || '';
+  const userPrompt = document.getElementById('user-prompt')?.value || '{text}';
+  const temp       = parseFloat(document.getElementById('temperature')?.value || '0');
+  const useSeed    = document.getElementById('use-seed')?.checked || false;
+  const seedVal    = parseInt(document.getElementById('seed-val')?.value || '42', 10);
+  const useMaxTokens = document.getElementById('use-max-tokens')?.checked || false;
+  const maxTokensVal = parseInt(document.getElementById('max-tokens-val')?.value || '4096', 10);
+  const provider   = STATE.provider;
+  const model      = STATE.model;
+
+  const { schema } = buildJsonSchema();
+  const schemaStr  = JSON.stringify(schema, null, 4);
+
+  const openaiModeSelect = document.getElementById('openai-mode-select');
+  const openaiMode = openaiModeSelect ? openaiModeSelect.value : 'pydantic';
+
+  const groqModeSelect = document.getElementById('groq-mode-select');
+  const groqMode = groqModeSelect ? groqModeSelect.value : 'pydantic';
+
+  const mistralModeSelect = document.getElementById('mistral-mode-select');
+  const mistralMode = mistralModeSelect ? mistralModeSelect.value : 'pydantic';
+
+  const anthropicModeSelect = document.getElementById('anthropic-mode-select');
+  const anthropicMode = anthropicModeSelect ? anthropicModeSelect.value : 'pydantic';
+
+  if (provider === 'openai')     return generateOpenAI({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, openaiMode });
+  if (provider === 'anthropic')  return generateAnthropic({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, anthropicMode });
+  if (provider === 'gemini')     return generateGemini({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model });
+  if (provider === 'mistral')    return generateMistral({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, mistralMode });
+  if (provider === 'deepseek')   return generateDeepSeek({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model });
+  if (provider === 'llama')      return generateLlaMa({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model });
+  if (provider === 'xai')        return generateXAI({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model });
+  return generateGroq({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, groqMode });
+}
+
+function pyStr(s) {
+  return '"""\n' + s.replace(/\\/g,'\\\\').replace(/"""/g,'\\"\\"\\"') + '\n"""';
+}
+
+function generateOpenAI({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, openaiMode }) {
+  const strictModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4o-2024-08-06'];
+  const useStrict = strictModels.includes(model);
+  let extra = '';
+  if (useSeed) extra += `    seed=${seedVal},\n`;
+  if (useMaxTokens) extra += `    max_tokens=${maxTokensVal},\n`;
+
+  // Responses API uses max_output_tokens instead of max_tokens
+  let extraResponses = '';
+  if (useMaxTokens) extraResponses += `        max_output_tokens=${maxTokensVal},\n`;
+
+  if (openaiMode === 'pydantic') {
+    const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : OpenAI (SDK Parse with Pydantic)
+Model    : ${model}
+"""
+
+import json
+${pydanticCode}
+
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict | None:
+    completion = client.chat.completions.parse(
+        model="${model}",
+        temperature=${temp},
+${extra}        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+        response_format=${rootClass},
+    )
+    message = completion.choices[0].message
+
+    # If the model refuses to respond, you will get a refusal message
+    if message.refusal:
+        print(f"Model refused: {message.refusal}")
+        return None
+
+    return message.parsed.model_dump()
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    if result:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  }
+
+  if (openaiMode === 'responses') {
+    const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : OpenAI (Responses API with Pydantic)
+Model    : ${model}
+"""
+
+import json
+${pydanticCode}
+
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict | None:
+    response = client.responses.parse(
+        model="${model}",
+        temperature=${temp},
+${extraResponses}        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+        text_format=${rootClass},
+    )
+
+    for output in response.output:
+        if output.type != "message":
+            continue
+        for item in output.content:
+            if item.type == "refusal":
+                # If the model refuses to respond, you will get a refusal message
+                print(f"Model refused: {item.refusal}")
+                return None
+            if item.parsed:
+                return item.parsed.model_dump()
+    return None
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    if result:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  }
+
+  // json_schema mode (original behavior)
+  const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : OpenAI
+Model    : ${model}
+"""
+
+import json
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_OPENAI_API_KEY")
+
+# ── Schema ────────────────────────────────────────────────────────────────────
+# ${useStrict ? 'STRICT MODE REQUIREMENTS:\n# • All fields MUST be in the "required" array\n# • additionalProperties must be set to false\n# • Optional fields use union types: ["type", "null"]\n# • See: https://platform.openai.com/docs/guides/structured-outputs\n#' : ''}
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+    response = client.chat.completions.create(
+        model="${model}",
+        temperature=${temp},
+${extra}        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "${schemaName}",
+                "strict": ${useStrict ? 'True' : 'False'},
+                "schema": SCHEMA,
+            },
+        },
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+function generateGroq({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, groqMode }) {
+  const strictModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+  const useStrict = strictModels.includes(model);
+  let extra = '';
+  if (useSeed) extra += `    seed=${seedVal},\n`;
+  if (useMaxTokens) extra += `    max_tokens=${maxTokensVal},\n`;
+
+  if (groqMode === 'pydantic') {
+    const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : GroqCloud (SDK Parse with Pydantic)
+Model    : ${model}
+"""
+
+import json
+${pydanticCode}
+
+from groq import Groq
+
+client = Groq(api_key="YOUR_GROQ_API_KEY")
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict | None:
+    completion = client.chat.completions.parse(
+        model="${model}",
+        temperature=${temp},
+${extra}        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+        response_format=${rootClass},
+    )
+    message = completion.choices[0].message
+
+    # If the model refuses to respond, you will get a refusal message
+    if message.refusal:
+        print(f"Model refused: {message.refusal}")
+        return None
+
+    return message.parsed.model_dump()
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    if result:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  }
+
+  // json_schema mode (original behavior)
+  const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : GroqCloud
+Model    : ${model}
+"""
+
+import json
+from groq import Groq
+
+client = Groq(api_key="YOUR_GROQ_API_KEY")
+
+# ── Schema ────────────────────────────────────────────────────────────────────
+# ${useStrict ? 'STRICT MODE REQUIREMENTS:\n# • All fields MUST be in the "required" array\n# • additionalProperties must be set to false\n# • Optional fields use union types: ["type", "null"]\n# • Streaming and tool use are not currently supported with Structured Outputs.\n# • See: https://console.groq.com/docs/structured-outputs\n#' : 'BEST-EFFORT MODE:\n# • The schema is passed to the API but is not strictly enforced server-side.\n# • Validate the output before use in production pipelines.\n# • Streaming and tool use are not currently supported with Structured Outputs.\n# • See: https://console.groq.com/docs/structured-outputs\n#'}
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+    response = client.chat.completions.create(
+        model="${model}",
+        temperature=${temp},
+${extra}        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "${schemaName}",
+                "strict": ${useStrict ? 'True' : 'False'},
+                "schema": SCHEMA,
+            },
+        },
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+function generateAnthropic({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, anthropicMode }) {
+  const seedComment = useSeed ? `    # Note: Anthropic does not support a seed parameter for reproducibility.\n    # For consistent results, consider using temperature=0 or fixed model versions.\n` : '';
+  // Anthropic requires max_tokens — use user value when enabled, otherwise default to 1024
+  const anthropicMaxTokens = useMaxTokens ? maxTokensVal : 1024;
+
+  if (anthropicMode === 'pydantic') {
+    const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Anthropic
+Model    : ${model}
+"""
+
+import json
+${pydanticCode}
+
+import anthropic
+
+client = anthropic.Anthropic(api_key="YOUR_ANTHROPIC_API_KEY")
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}    response = client.messages.parse(
+        model="${model}",
+        max_tokens=${anthropicMaxTokens},
+        temperature=${temp},
+        system=SYSTEM_PROMPT,
+        messages=[
+            {"role": "user", "content": USER_TEMPLATE.format(text=text)},
+        ],
+        output_format=${rootClass},
+    )
+    # The SDK validates the response and returns a typed Pydantic object
+    return response.parsed_output.model_dump()
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  } else {
+    const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Anthropic
+Model    : ${model}
+"""
+
+import json
+import anthropic
+
+client = anthropic.Anthropic(api_key="YOUR_ANTHROPIC_API_KEY")
+
+# ── Schema (${schemaName}) ────────────────────────────────────────────────────────
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}    response = client.messages.create(
+        model="${model}",
+        max_tokens=${anthropicMaxTokens},
+        temperature=${temp},
+        system=SYSTEM_PROMPT,
+        messages=[
+            {"role": "user", "content": USER_TEMPLATE.format(text=text)},
+        ],
+         output_config={
+             "format": {
+                 "type": "json_schema",
+                 "schema": SCHEMA,
+             }
+         },
+    )
+    return json.loads(response.content[0].text)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  }
+}
+
+function generateGemini({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model }) {
+  const isGemini20 = model.startsWith('gemini-2.0');
+  const schemaForCode = isGemini20 ? addPropertyOrdering(schema) : schema;
+  const indentedSchema = JSON.stringify(schemaForCode, null, 4)
+    .split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+  const seedComment = useSeed ? `    # Note: Gemini does not support a seed parameter.\n` : '';
+  const maxOutputTokensLine = useMaxTokens ? `        max_output_tokens=${maxTokensVal},\n` : '';
+  const sysPart = sysPrompt
+    ? `    config=genai.types.GenerateContentConfig(\n        system_instruction=${pyStr(sysPrompt)},\n        temperature=${temp},\n${maxOutputTokensLine}        response_mime_type="application/json",\n        response_json_schema=SCHEMA,\n    ),\n`
+    : `    config=genai.types.GenerateContentConfig(\n        temperature=${temp},\n${maxOutputTokensLine}        response_mime_type="application/json",\n        response_json_schema=SCHEMA,\n    ),\n`;
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Google Gemini
+Model    : ${model}
+"""
+
+import json
+from google import genai
+
+client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
+
+# ── Schema ────────────────────────────────────────────────────────────────────
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}    response = client.models.generate_content(
+        model="${model}",
+        contents=USER_TEMPLATE.format(text=text),
+${sysPart}    )
+    return json.loads(response.text)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+function addPropertyOrdering(schema) {
+  if (typeof schema !== 'object' || schema === null) return schema;
+  if (Array.isArray(schema)) return schema.map(addPropertyOrdering);
+  const out = {};
+  for (const [k, v] of Object.entries(schema)) {
+    out[k] = (k === 'properties' || k === 'items') ? addPropertyOrdering(v) : v;
+  }
+  if (out.type === 'object' && out.properties && !out.propertyOrdering) {
+    out.propertyOrdering = Object.keys(out.properties);
+  }
+  return out;
+}
+
+function jsonSchemaToPydantic(schema, rootName) {
+    if (!rootName || rootName.trim() === '') rootName = 'ResponseModel';
+    const pascalRootName = rootName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    
+    let classes = [];
+    let generatedClassNames = new Set();
+
+    function toPascal(str) {
+        if (!str) return 'Item';
+        return str.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    }
+
+    function parseNode(node, name) {
+        if (!node || node.type !== 'object') return 'Any';
+        const className = toPascal(name);
+        
+        let lines = [];
+        lines.push(`class ${className}(BaseModel):`);
+        
+        if (!node.properties || Object.keys(node.properties).length === 0) {
+            lines.push(`    pass`);
+            if (!generatedClassNames.has(className)) {
+                classes.push(lines.join('\n'));
+                generatedClassNames.add(className);
+            }
+            return className;
+        }
+
+        for (const [key, prop] of Object.entries(node.properties)) {
+            const isReq = Array.isArray(node.required) && node.required.includes(key);
+            let pyType = 'Any';
+            
+            let actualType = prop.type;
+            if (Array.isArray(actualType)) {
+                actualType = actualType.find(t => t !== 'null') || 'string';
+            }
+
+            if (actualType === 'string') pyType = 'str';
+            else if (actualType === 'integer') pyType = 'int';
+            else if (actualType === 'number') pyType = 'float';
+            else if (actualType === 'boolean') pyType = 'bool';
+            else if (actualType === 'array') {
+                if (prop.items) {
+                    let itemType = prop.items.type;
+                    if (Array.isArray(itemType)) itemType = itemType.find(t => t !== 'null') || 'string';
+                    
+                    if (itemType === 'object') {
+                        const itemClass = parseNode(prop.items, name + '_' + key + '_item');
+                        pyType = `list[${itemClass}]`;
+                    } else if (itemType === 'string') pyType = 'list[str]';
+                    else if (itemType === 'integer') pyType = 'list[int]';
+                    else if (itemType === 'number') pyType = 'list[float]';
+                    else if (itemType === 'boolean') pyType = 'list[bool]';
+                    else pyType = 'list[Any]';
+                } else {
+                    pyType = 'list[Any]';
+                }
+            } else if (actualType === 'object') {
+                const nestedClass = parseNode(prop, name + '_' + key);
+                pyType = nestedClass;
+            }
+
+            if (prop.enum && prop.enum.length > 0) {
+                const enumVals = prop.enum.map(v => typeof v === 'string' ? `"${v}"` : v).join(', ');
+                pyType = `Literal[${enumVals}]`;
+            }
+
+            let fieldDef = `    ${key}: ${pyType}`;
+            if (!isReq) {
+                fieldDef = `    ${key}: Optional[${pyType}] = None`;
+            }
+            lines.push(fieldDef);
+        }
+
+        if (!generatedClassNames.has(className)) {
+            classes.push(lines.join('\n'));
+            generatedClassNames.add(className);
+        }
+        return className;
+    }
+
+    const rootClass = parseNode(schema, pascalRootName);
+
+    const allCode = classes.join('\n\n');
+    let imports = ['from pydantic import BaseModel'];
+    let typingImports = [];
+    if (allCode.includes('Literal[')) typingImports.push('Literal');
+    if (allCode.includes('Optional[')) typingImports.push('Optional');
+    if (allCode.includes('Any')) typingImports.push('Any');
+
+    if (typingImports.length > 0) {
+        imports.push(`from typing import ${typingImports.join(', ')}`);
+    }
+
+    return {
+        pydanticCode: imports.join('\n') + '\n\n' + classes.join('\n\n'),
+        rootClass: rootClass
+    };
+}
+
+function generateMistral({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model, mistralMode }) {
+  const seedComment = useSeed ? `    # Note: Mistral does not support a seed parameter.\n` : '';
+  const maxTokensLine = useMaxTokens ? `        max_tokens=${maxTokensVal},\n` : '';
+
+  if (mistralMode === 'pydantic') {
+    const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Mistral AI
+Model    : ${model}
+"""
+
+import json
+${pydanticCode}
+
+from mistralai import Mistral
+
+client = Mistral(api_key="YOUR_MISTRAL_API_KEY")
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}    response = client.chat.parse(
+        model="${model}",
+        temperature=${temp},
+${maxTokensLine}        response_format=${rootClass},
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+    )
+    # The output is parsed into a Pydantic object automatically
+    return response.choices[0].message.parsed.model_dump()
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  } else {
+    const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+    const sysBase = sysPrompt || 'You are a helpful assistant.';
+    
+    return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Mistral AI
+Model    : ${model}
+"""
+
+import json
+from mistralai import Mistral
+
+client = Mistral(api_key="YOUR_MISTRAL_API_KEY")
+
+# ── Schema (injected into system prompt for Mistral JSON mode) ───────────────
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+# Note: Mistral uses JSON mode (response_format={"type":"json_object"}).
+# The schema is embedded in the system prompt — the model is instructed
+# to follow it, but it is not enforced server-side. Validate output before use.
+SYSTEM_PROMPT = ${pyStr(sysBase)} + """
+
+You must respond with a valid JSON object that strictly follows this schema:
+""" + json.dumps(SCHEMA, indent=2) + """
+
+Return ONLY the JSON object — no markdown, no explanation, no extra text."""
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}    response = client.chat.complete(
+        model="${model}",
+        temperature=${temp},
+${maxTokensLine}        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+  }
+}
+
+function generateDeepSeek({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model }) {
+  const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '        ' + l).join('\n');
+  const sysBase = sysPrompt || 'You are a helpful assistant.';
+  let extra = '';
+  if (useSeed) extra = `        seed=${seedVal},\n`;
+  // DeepSeek benefits from an explicit max_tokens — use user value when enabled, otherwise default to 8192
+  const deepseekMaxTokens = useMaxTokens ? maxTokensVal : 8192;
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : DeepSeek
+Model    : ${model}
+"""
+
+import json
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="YOUR_DEEPSEEK_API_KEY",
+    base_url="https://api.deepseek.com",
+)
+
+# ── Schema (injected into system prompt for DeepSeek JSON mode) ───────────────
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+# Note: DeepSeek uses JSON mode (response_format={"type":"json_object"}).
+# The schema is embedded in the system prompt — the model is instructed
+# to follow it, but it is not enforced server-side. Validate output before use.
+SYSTEM_PROMPT = ${pyStr(sysBase)} + """
+
+You must respond with a valid JSON object that strictly follows this schema:
+""" + json.dumps(SCHEMA, indent=2) + """
+
+Return ONLY the JSON object — no markdown, no explanation, no extra text."""
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+    response = client.chat.completions.create(
+        model="${model}",
+        max_tokens=${deepseekMaxTokens},
+        temperature=${temp},
+${extra}        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+    )
+    
+    content = response.choices[0].message.content
+    
+    if not content:
+        raise ValueError("DeepSeek API returned an empty response. This may indicate a truncation issue or API error.")
+    
+    return json.loads(content)
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+function generateLlaMa({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model }) {
+  const indentedSchema = schemaStr.split('\n').map((l, i) => i === 0 ? l : '            ' + l).join('\n');
+  let extra = '';
+  if (useSeed) extra += `        "seed": ${seedVal},\n`;
+  if (useMaxTokens) extra += `        "max_tokens": ${maxTokensVal},\n`;
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : Meta Llama
+Model    : ${model}
+"""
+
+import json
+import os
+import requests
+
+LLAMA_API_KEY = "YOUR_LLAMA_API_KEY"
+
+# ── Schema ────────────────────────────────────────────────────────────────────
+SCHEMA = ${indentedSchema}
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+    payload = {
+        "model": "${model}",
+        "temperature": ${temp},
+${extra}        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user",   "content": USER_TEMPLATE.format(text=text)},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "${schemaName}",
+                "schema": SCHEMA,
+            },
+        },
+    }
+    response = requests.post(
+        url="https://api.llama.com/v1/chat/completions",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {LLAMA_API_KEY}",
+        },
+        json=payload,
+    )
+    response.raise_for_status()
+    return json.loads(response.json()["completion_message"]["content"]["text"])
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+function generateXAI({ schemaName, schema, schemaStr, sysPrompt, userPrompt, temp, useSeed, seedVal, useMaxTokens, maxTokensVal, model }) {
+  const seedComment = useSeed ? `    # Note: xAI does not support a seed parameter.\n` : '';
+  const { pydanticCode, rootClass } = jsonSchemaToPydantic(schema, schemaName);
+
+  // Determine if model is reasoning (affects temperature support)
+  const isReasoning = !model.includes('non-reasoning');
+  const tempNote = isReasoning
+    ? `    # Note: Reasoning models may ignore the temperature parameter.\n`
+    : '';
+  const maxTokensParam = useMaxTokens ? `\n        max_tokens=${maxTokensVal},` : '';
+
+  return `#!/usr/bin/env python3
+"""
+Generated by SchemaForge — jesusvillota.github.io/schemaforge
+Provider : xAI (Grok)
+Model    : ${model}
+SDK      : xai_sdk (native xAI Python SDK)
+Docs     : https://docs.x.ai/docs/guides/structured-outputs
+"""
+
+import os
+import json
+${pydanticCode}
+
+from xai_sdk import Client
+from xai_sdk.chat import system, user
+
+client = Client(api_key=os.getenv("XAI_API_KEY"))
+
+# ── Prompts ───────────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = ${pyStr(sysPrompt || 'You are a helpful assistant.')}
+
+USER_TEMPLATE = ${pyStr(userPrompt || '{text}')}
+
+
+def run(text: str) -> dict:
+${seedComment}${tempNote}    chat = client.chat.create(
+        model="${model}",${maxTokensParam}
+    )
+    chat.append(system(SYSTEM_PROMPT))
+    chat.append(user(USER_TEMPLATE.format(text=text)))
+
+    # The parse method returns a tuple of (Response, PydanticModel).
+    # The response is guaranteed to match the ${rootClass} schema.
+    response, result = chat.parse(${rootClass})
+
+    # Access parsed fields directly: result.field_name
+    return result.model_dump()
+
+
+if __name__ == "__main__":
+    sample_text = "Enter your sample text here."
+    result = run(sample_text)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+`;
+}
+
+// ─── SYNTAX HIGHLIGHTING ─────────────────────────────────────────────────────
+const PY_KEYWORDS = new Set(['import','from','def','return','if','else','elif','for',
+  'while','in','not','and','or','class','with','as','pass','raise','try','except',
+  'finally','yield','lambda','del','global','nonlocal','assert','break','continue']);
+const PY_LITERALS = new Set(['True','False','None']);
+
+function highlight(code) {
+  const RE = /(?<tripleq>"""[\s\S]*?"""|'''[\s\S]*?''')|(?<comment>#[^\n]*)|(?<singleq>"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(?<ident>[A-Za-z_]\w*)|(?<num>\d+(?:\.\d+)?)/g;
+  let out = '';
+  let last = 0;
+  for (const m of code.matchAll(RE)) {
+    if (m.index > last) out += esc(code.slice(last, m.index));
+    const e = esc(m[0]);
+    if (m.groups.tripleq || m.groups.singleq) {
+      out += `<span class="tok-str">${e}</span>`;
+    } else if (m.groups.comment) {
+      out += `<span class="tok-cmt">${e}</span>`;
+    } else if (m.groups.ident) {
+      const word = m[0];
+      if (PY_KEYWORDS.has(word)) {
+        out += `<span class="tok-kw">${e}</span>`;
+      } else if (PY_LITERALS.has(word)) {
+        out += `<span class="tok-bool">${e}</span>`;
+      } else {
+        const after = code.slice(m.index + word.length).match(/^\s*\(/);
+        out += after ? `<span class="tok-fn">${e}</span>` : e;
+      }
+    } else if (m.groups.num) {
+      out += `<span class="tok-num">${e}</span>`;
+    } else {
+      out += e;
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < code.length) out += esc(code.slice(last));
+  return out;
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── PREVIEW ─────────────────────────────────────────────────────────────────
+function refreshPreview() {
+  const hasFields = hasAnyNamedField();
+  const placeholder = document.getElementById('preview-placeholder');
+  const codeOut     = document.getElementById('code-output');
+  const schemaOut   = document.getElementById('schema-output');
+  
+  // Check for Anthropic constraints if applicable
+  const anthropicConstraintsWarnEl = document.getElementById('anthropic-constraints-warning');
+  if (STATE.provider === 'anthropic' && hasFields) {
+    const constraintIssues = detectAnthrcopicConstraints(STATE.fields);
+    if (constraintIssues.length > 0) {
+      const issuesList = constraintIssues.map(issue => `<li>${issue}</li>`).join('');
+      const anthropicConstraintsTextEl = document.getElementById('anthropic-constraints-text');
+      anthropicConstraintsTextEl.innerHTML = `<strong>Anthropic Constraint Limitations:</strong><ul style="margin-top:.4rem;margin-left:1.5rem;font-size:.75rem;line-height:1.4;">${issuesList}</ul><div style="margin-top:.4rem;font-size:.75rem;">The Anthropic SDK will move these constraints to field descriptions. Your code must validate the response against the original schema.</div>`;
+      anthropicConstraintsWarnEl.style.display = 'flex';
+    } else {
+      anthropicConstraintsWarnEl.style.display = 'none';
+    }
+  } else {
+    anthropicConstraintsWarnEl.style.display = 'none';
+  }
+
+  // Check for xAI constraints if applicable
+  const xaiConstraintsWarnEl = document.getElementById('xai-constraints-warning');
+  if (STATE.provider === 'xai' && hasFields) {
+    const constraintIssues = detectXaiConstraints(STATE.fields);
+    if (constraintIssues.length > 0) {
+      const issuesList = constraintIssues.map(issue => `<li>${issue}</li>`).join('');
+      const xaiConstraintsTextEl = document.getElementById('xai-constraints-text');
+      xaiConstraintsTextEl.innerHTML = `<strong>xAI Structured Output Limitations:</strong><ul style="margin-top:.4rem;margin-left:1.5rem;font-size:.75rem;line-height:1.4;">${issuesList}</ul><div style="margin-top:.4rem;font-size:.75rem;">These constraints are not in xAI's supported schema subset. The generated Pydantic model will omit them; add manual validation if needed.</div>`;
+      xaiConstraintsWarnEl.style.display = 'flex';
+    } else {
+      xaiConstraintsWarnEl.style.display = 'none';
+    }
+  } else {
+    xaiConstraintsWarnEl.style.display = 'none';
+  }
+
+  if (!hasFields) {
+    placeholder.style.display = 'flex';
+    codeOut.style.display   = 'none';
+    schemaOut.style.display = 'none';
+    return;
+  }
+
+  placeholder.style.display = 'none';
+
+  if (STATE.activeTab === 'code') {
+    const code = generateCode();
+    codeOut.innerHTML = highlight(code);
+    codeOut.style.display   = 'block';
+    schemaOut.style.display = 'none';
+  } else {
+    const { schema } = buildJsonSchema();
+    schemaOut.innerHTML = highlight(JSON.stringify(schema, null, 2));
+    codeOut.style.display   = 'none';
+    schemaOut.style.display = 'block';
+  }
+}
+
+function switchTab(tab) {
+  STATE.activeTab = tab;
+  document.getElementById('tab-code').classList.toggle('active', tab === 'code');
+  document.getElementById('tab-schema').classList.toggle('active', tab === 'schema');
+  
+  const dlText = tab === 'code' ? '⬇ Download .py file' : '⬇ Download .json file';
+  const btn1 = document.getElementById('download-btn-1');
+  const btn2 = document.getElementById('download-btn-2');
+  if (btn1) btn1.textContent = dlText;
+  
+  // Update the title of the header download button
+  if (btn2) {
+    btn2.title = tab === 'code' ? 'Download Python script' : 'Download JSON Schema';
+  }
+
+  // Show validate button only in strict mode when viewing schema tab
+  const validateBtn = document.getElementById('validate-btn');
+  if (validateBtn) {
+    validateBtn.style.display = (isStrictModeActive() && tab === 'schema') ? 'flex' : 'none';
+  }
+
+  refreshPreview();
+}
+
+// ─── COPY ─────────────────────────────────────────────────────────────────────
+function doCopy() {
+  if (!hasAnyNamedField()) return;
+  const text = STATE.activeTab === 'code'
+    ? generateCode()
+    : JSON.stringify(buildJsonSchema().schema, null, 2);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const origHTML = btn.innerHTML;
+    // Show a checkmark for "Copied!"
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = origHTML; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// ─── VALIDATE SCHEMA ──────────────────────────────────────────────────────
+function doValidate() {
+  if (!hasAnyNamedField()) { alert('Add at least one named field to validate.'); return; }
+  
+  const { warnings, errors } = validateSchemaForStrictMode(STATE.fields, STATE.model);
+  
+  if (errors.length === 0 && warnings.length === 0) {
+    alert('✓ Schema is valid for strict mode!');
+    return;
+  }
+  
+  let message = '';
+  if (errors.length > 0) {
+    message += 'ERRORS:\n';
+    errors.forEach(e => message += '  • ' + e + '\n');
+    message += '\n';
+  }
+  if (warnings.length > 0) {
+    message += 'WARNINGS:\n';
+    warnings.forEach(w => message += '  • ' + w + '\n');
+  }
+  
+  alert(message);
+}
+
+// ─── DOWNLOAD ────────────────────────────────────────────────────────────────
+function doDownload() {
+  if (!hasAnyNamedField()) { alert('Add at least one named field before downloading.'); return; }
+  
+  let content, name, type;
+  const baseName = (document.getElementById('schema-name')?.value.trim() || 'schemaforge');
+
+  if (STATE.activeTab === 'code') {
+    content = generateCode();
+    name = baseName + '.py';
+    type = 'text/x-python';
+  } else {
+    content = JSON.stringify(buildJsonSchema().schema, null, 2);
+    name = baseName + '.json';
+    type = 'application/json';
+  }
+
+  const blob = new Blob([content], { type });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── EXAMPLE SCHEMA (FirmShock — Villota Miranda 2024) ────────────────────────
+// From: "Predicting Market Reactions to News: An LLM-Based Approach Using
+// Spanish Business Articles" — https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5006857
+function loadExampleSchema() {
+  STATE.fields = [];
+  STATE.nextFieldId = 1;
+
+  // Build sub-fields for the array-of-objects item
+  const subFirm = Object.assign(newField('string'), {
+    name: 'firm',
+    description: 'Name of the Spanish firm directly affected by the news, publicly listed in the Spanish stock exchange.',
+    required: true,
+  });
+
+  const subTicker = Object.assign(newField('string'), {
+    name: 'ticker',
+    description: "Yahoo Finance ticker of the firm. Spanish firms end with '.MC' (e.g. ITX.MC, SAN.MC, IBE.MC).",
+    required: true,
+  });
+
+  const subShockType = Object.assign(newField('string'), {
+    name: 'shock_type',
+    description: "Type of shock: 'demand' for consumer demand events, 'supply' for supply-chain events, 'financial' for market/financial conditions, 'policy' for regulatory changes, 'technology' for tech disruptions.",
+    required: true,
+    enumValues: ['demand', 'supply', 'financial', 'policy', 'technology'],
+  });
+
+  const subShockMagnitude = Object.assign(newField('string'), {
+    name: 'shock_magnitude',
+    description: "Strength of the shock: 'minor' for moderate impact, 'major' for significant impact.",
+    required: true,
+    enumValues: ['minor', 'major'],
+  });
+
+  const subShockDirection = Object.assign(newField('string'), {
+    name: 'shock_direction',
+    description: "Direction of the shock for this firm: 'positive' for beneficial impact, 'negative' for adverse impact.",
+    required: true,
+    enumValues: ['positive', 'negative'],
+  });
+
+  // Root-level 'firms' array-of-objects field
+  const firmsField = Object.assign(newField('array'), {
+    name: 'firms',
+    description: 'List of Spanish firms (publicly listed in the Spanish stock exchange with TICKER.MC format) directly and non-neutrally affected by the news. Exclude foreign firms and firms only mentioned for context.',
+    required: true,
+    arrayItemType: 'object',
+    subFields: [subFirm, subTicker, subShockType, subShockMagnitude, subShockDirection],
+  });
+
+  STATE.fields.push(firmsField);
+  document.getElementById('schema-name').value = 'firm_shock_parser';
+
+  renderFields();
+  refreshPreview();
+}
+
+// ─── CLEAR SCHEMA ─────────────────────────────────────────────────────────────
+function clearSchema() {
+  STATE.fields = [];
+  STATE.nextFieldId = 1;
+  document.getElementById('schema-name').value = '';
+  const banner = document.getElementById('example-banner');
+  if (banner) banner.style.display = 'none';
+  renderFields();
+  refreshPreview();
+}
+
+// ─── THEME TOGGLE ────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const root = document.documentElement;
+  const currentTheme = root.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  
+  if (newTheme === 'dark') {
+    root.setAttribute('data-theme', 'dark');
+  } else {
+    root.removeAttribute('data-theme');
+  }
+  
+  localStorage.setItem('schemaforge-theme', newTheme);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  goStep(1);
+  rebuildModelSelect();
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('prov-openai').classList.add('selected');
+  loadExampleSchema();
+  initResizeDivider();
+}
+
+init();
+</script>
+</body>
+</html>
