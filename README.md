@@ -1,30 +1,24 @@
 # SchemaForge
 
-SchemaForge is an interactive, browser-based tool for designing, validating, and exporting structured output schemas across major Large Language Model (LLM) providers (including Anthropic Claude, OpenAI, Google Gemini, DeepSeek, Groq, Mistral, Meta Llama, and xAI).
+**SchemaForge** is an interactive tool for designing, validating, and exporting structured-output schemas for Large Language Models.
 
-## Features
+**Website:** https://schemaforge-app.github.io
 
-- **Visual Schema Builder**: Build hierarchical JSON schemas with nested objects, arrays, types, and validation constraints.
-- **Multi-Provider Export**: Generate provider-compliant structured output configurations, Pydantic models, JSON Schema definitions, and API client snippets.
-- **Provider Reference Library**: Includes structured outputs documentation and best practices across supported AI providers.
-- **Zero Build Step**: Fully self-contained static HTML/CSS/JS application running entirely client-side.
+SchemaForge provides a visual interface for building hierarchical JSON schemas and translating them into provider-specific structured-output configurations. It supports the major LLM providers covered by the application, including OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Groq, Mistral, Meta Llama, and xAI.
 
-## Getting Started
+## What SchemaForge offers
 
-Because SchemaForge is a pure static site, you can run it locally with no build tooling required:
+- **Visual schema building** for objects, arrays, nested fields, types, required fields, enums, and validation constraints.
+- **Provider-aware validation** that identifies schema features or constraints that are unsupported by a selected provider or model.
+- **Provider-specific exports** for structured-output APIs and SDKs.
+- **JSON Schema and Pydantic generation** from the same visual specification.
+- **Ready-to-use API examples** showing how to use the generated schema with different LLM providers.
+- **Structured-output reference material** summarizing provider capabilities, supported approaches, and practical limitations.
 
-### Option 1: Direct File Open
-Open `index.html` directly in any modern web browser.
+The aim is to make structured outputs easier to design correctly while making differences in implementation and schema support across LLM providers explicit.
 
-### Option 2: Local HTTP Server (Recommended)
-Serve the directory using Python's built-in HTTP server or any local static server:
+## Conceptual foundation
 
-```bash
-python3 -m http.server 8000
-```
+SchemaForge is built around the framework developed in Jesús Villota's paper **[Structured Data with LLMs Done Right](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5636430)**.
 
-Then navigate to `http://localhost:8000` in your web browser.
-
-## Deployment & Extraction
-
-This standalone repository was extracted from Jesus Villota's personal website ([jesusvillota.github.io](https://jesusvillota.github.io)) to live at its own dedicated GitHub Pages root URL: [https://schema-forge.github.io](https://schema-forge.github.io) once published under the `schema-forge` GitHub organization.
+The paper develops the practical approach that underlies the application: how to obtain reliable structured data from Large Language Models, how schemas and validation should be used, and why provider-specific capabilities and limitations need to be handled explicitly rather than treated as interchangeable.
